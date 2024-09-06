@@ -122,6 +122,7 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	}
 
 	// should be *env_store = e;, this might literaly work tho
+	
 	*env_store = e;
 	return 0;
 }
