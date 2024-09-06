@@ -1,0 +1,87 @@
+\documentclass[11pt]{article}
+\usepackage[letterpaper, margin=2cm]{geometry}
+\usepackage{titlesec}
+\usepackage{mdframed}
+\usepackage[dvipsnames]{xcolor} % for color names, must be loaded before tikz
+\usepackage{ifthen}
+\usepackage{comment}
+\usepackage{fancyhdr}
+\usepackage{fancyvrb}
+\usepackage{titling}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usepackage{amsmath, amssymb, amsthm}
+
+\providecommand{\due}{}
+\lhead{Virtualization} \rhead{The University of Texas}
+\lfoot{\due} \cfoot{} \rfoot{Page \thepage}
+\renewcommand{\footrulewidth}{0.4pt}
+\pagestyle{fancy}
+
+% Eliminates the spacing in the title that remains from the empty author section.
+\preauthor{}
+\postauthor{}
+
+\titleformat{\section}[runin]{\large\bfseries}{\thesection .}{3pt}{}
+\titleformat{\subsection}[runin]{\bfseries}{\thesubsection)}{3pt}{}
+\renewcommand\thesubsection{\alph{subsection}}
+
+% Defines the solution environment. Toggle solutions between true and false to either show or hide solutions. Also, the solution environment takes an optional argument of arbitrary text to be inserted in the solution header.
+\newboolean{solutions}
+\setboolean{solutions}{true}
+\ifthenelse{\boolean{solutions}}
+{\newenvironment{solution}{\begin{mdframed}[skipbelow=0pt, linecolor=White, backgroundcolor=Green!10]\textbf{Solution:}}{\end{mdframed}}}
+{\excludecomment{solution}}
+
+\allowdisplaybreaks
+
+\begin{document}
+
+\title{Virtualization\\Pre-lab Questions --- \#3}
+\date{\due}
+
+\maketitle
+
+\noindent \textbf{Point total:} 4
+\\ All homework assignments are weighted equally in the final grade. Point values are unique to each lab assignment.
+
+\textbf{Note:} For all problems which ask you to explain your reasoning or show your work, you do not need to show every step of each calculation, but the answer should include an explanation \emph{written with words} of what you did.  Even when work is not required to be shown, it’s a good idea to include anyways so that you can earn partial credit.
+
+\section{Question [1 point]}
+
+Name 3 different events that might cause a vmexit. You can look through some of the reasons in \texttt{vmm/vmx.c}, but it may be easier to reason this from your knowledge of operating systems and virtual machines
+
+\begin{solution}
+Your answer here.
+\end{solution}
+
+
+\section{Question [1 point]}
+
+What overhead costs exist when you do a VM exit? Give an example in the codebase of one of these computation costs. Provide the function and file, and an explanation.
+
+\begin{solution}
+Your answer here.
+\end{solution}
+
+
+\section{Question [1 point]}
+
+Recall that the \texttt{\%cr3} register holds the physical address of a page table. An OS kernel needs to change \texttt{\%cr3} during context switches to switch page tables. Does our VM, which has hardware supported page tables for virtual machines also have to do this? GDB does not display the \texttt{\%cr3} register, but you can check it using the QEMU monitor before and after a vmexit is issued.
+
+\begin{solution}
+Your answer here.
+\end{solution}
+
+
+\section{Question [1 point]}
+
+In Part-3 of this project, you will be responsible for filling in pieces in the codebase to boot the VM. What is a bootloader? How do we ensure isolation between machines booting in memory?
+
+\begin{solution}
+Your answer here.
+\end{solution}
+
+
+\end{document}
