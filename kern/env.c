@@ -93,6 +93,11 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	// 	return 0;
 	// }
 
+	if (envid == 0) {
+		*env_store = curenv;
+		return 0;
+	}
+
 	// Look up the Env structure via the index part of the envid,
 	// then check the env_id field in that struct Env
 	// to ensure that the envid is not stale
@@ -100,9 +105,9 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	// that used the same slot in the envs[] array).
 
 	// it should use the ENVX() macro found in inc/env.h, not straight reference
-	e = &envs[envid];
+	e = &envs[ENVX(envid)];
 	if (e->env_status == ENV_FREE || e->env_id != envid) {
-		*env_store = 0;
+		*env_store = NULL;
 		return -E_BAD_ENV;
 	}
 
@@ -112,12 +117,13 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	// must be either the current environment
 	// or an immediate child of the current environment.
 	if (checkperm && e != curenv && e->env_parent_id != curenv->env_id) {
-		*env_store = 0;
+		*env_store = NULL;
 		return -E_BAD_ENV;
 	}
 
 	// should be *env_store = e;, this might literaly work tho
-	env_store = &e;
+	
+	*env_store = e;
 	return 0;
 }
 
@@ -370,6 +376,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	e->env_parent_id = parent_id;
 	e->env_type = ENV_TYPE_USER;
 	e->env_status = ENV_RUNNABLE;
+	e->env_runs = 1;
 
 	// Clear out all the saved register state,
 	// to prevent the register values
@@ -675,6 +682,9 @@ env_run(struct Env *e)
 		e->env_status = ENV_RUNNING;
 
 		// Hint, Lab 0: An environment has started running. We should keep track of that somewhere, right?
+		envs[ENVX(e->env_id)] = *e;
+
+		e->env_runs++;
 
 		// restore e's address space
 		if(e->env_type != ENV_TYPE_GUEST)

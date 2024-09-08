@@ -468,7 +468,7 @@ void asm_vmrun(struct Trapframe *tf) {
 	// of cr2 of the guest.
 
 	// Hint, Lab 0: tf_ds should have the number of runs, prior to entering the assembly!!
-	tf->tf_ds = 1;
+	tf->tf_ds = curenv->env_runs;
 	tf->tf_es = 0;
 	unlock_kernel();
 	asm(
@@ -605,7 +605,7 @@ int vmx_vmrun( struct Env *e ) {
 
 	// Hint, Lab 0: The following if statement should be true when the environment has only run once.
 	// Replace the conditional to use your new variable!
-	if( curenv == NULL) {
+	if( e->env_runs == 1) {
 		physaddr_t vmcs_phy_addr = PADDR(e->env_vmxinfo.vmcs);
 
 		// Call VMCLEAR on the VMCS region.
