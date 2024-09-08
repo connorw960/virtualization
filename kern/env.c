@@ -682,8 +682,6 @@ env_run(struct Env *e)
 		e->env_status = ENV_RUNNING;
 
 		// Hint, Lab 0: An environment has started running. We should keep track of that somewhere, right?
-		envs[ENVX(e->env_id)] = *e;
-
 		e->env_runs++;
 
 		// restore e's address space
