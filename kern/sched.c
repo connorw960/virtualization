@@ -47,14 +47,29 @@ sched_yield(void)
 		k = (j + i) % NENV;
 		// If this environment is runnable, run it.
 		if (envs[k].env_status == ENV_RUNNABLE) {
-            /* Your code here */
-			env_run(&envs[k]);
+            #ifndef VMM_GUEST
+				int vmx_result = vmxon();
+				if (vmx_result < 0)
+				{
+					cprintf("VMXON() failed with error code: %d\n", vmx_result);
+					return;
+				}
+				env_run(&envs[k]);
+			#endif
 		}
 	}
 
 	if (curenv && curenv->env_status == ENV_RUNNING) {
         /* Your code here */
-		env_run(curenv);
+		#ifndef VMM_GUEST
+			int vmx_result = vmxon();
+			if (vmx_result < 0)
+			{
+				cprintf("VMXON() failed with error code: %d\n", vmx_result);
+				return;
+			}
+			env_run(curenv);
+		#endif
 	}
 
 	// sched_halt never returns
