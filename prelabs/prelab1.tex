@@ -53,7 +53,10 @@
 What does the \texttt{cpuid} assembly instruction do in this function?
 
 \begin{solution}
-Your answer here.
+The overall purpose of this instruction is to gather information based off of the `info' flag 
+(what it is set to determines what info is retrieved). It will populate various registers with the 
+desired info. Then it takes the results from the 
+registers specified and assigns them to the variables eax, ebx, ecx, and edx. 
 \end{solution}
 
 
@@ -62,7 +65,8 @@ Your answer here.
 How is the function providing values back to you to use?
 
 \begin{solution}
-Your answer here.
+The function is assigning the values into pointers we fed into the function. We will be able to 
+access these pointers later on. 
 \end{solution}
 
 
@@ -71,13 +75,21 @@ Your answer here.
 What are the results of \texttt{eax}, \texttt{ecx}, and \texttt{ebx} values in hexadecimal?
 
 \begin{solution}
-Your answer here.
+    \begin{itemize}
+        \item eax: 0x4
+        \item ecx: 0x444d4163
+        \item ebx: 0x68747541
+    \end{itemize}
 \end{solution}
 
 
 \section{Question [1 point]}
 
-Now examine the values of these variables as strings. Hint: look at the values in hexadecimal and translate them to strings, in the order \texttt{ebx}, \texttt{edx}, \texttt{ecx}. What do you observe? The \href{https://en.wikipedia.org/wiki/CPUID}{Wikipedia page} for the cpuid instruction may help you interpret this output.
+Now examine the values of these variables as strings. 
+Hint: look at the values in hexadecimal and translate them to strings, 
+in the order \texttt{ebx}, \texttt{edx}, \texttt{ecx}. What do you observe? 
+The \href{https://en.wikipedia.org/wiki/CPUID}{Wikipedia page} for the cpuid instruction 
+may help you interpret this output.
 
 \begin{solution}
 Your answer here.
@@ -86,28 +98,39 @@ Your answer here.
 
 \section{Question [1 point]}
 
-There is a reference in each \texttt{Env} struct for another struct called \texttt{VmxGuestInfo}. What kind of information does this struct hold?
+There is a reference in each \texttt{Env} struct for another struct called 
+\texttt{VmxGuestInfo}. What kind of information does this struct hold?
 
 \begin{solution}
-Your answer here.
+It contains the physical memory size, the vmcs pointer referenced in later questions, an exception bitmap, an 
+I/O bitmap, and an MSR load/store area. Essentially, it contains all of the info related to a guest VM in 
+and what might be needed to manage it. 
 \end{solution}
 
 
 \section{Question [1 point]}
 
-From \href{https://www.cs.utexas.edu/~vijay/cs378-f17/projects/64-ia-32-architectures-software-developer-vol-3c-part-3-manual.pdf}{this Intel guide}, find out what the vmcs pointer in this struct stands for, and what it purpose it serves.
+From \href{https://www.cs.utexas.edu/~vijay/cs378-f17/projects/64-ia-32-architectures-software-developer-vol-3c-part-3-manual.pdf}{this Intel guide}, 
+find out what the vmcs pointer in this struct stands for, and what it purpose it serves.
 
 \begin{solution}
-Your answer here.
+VMCS stands for `Virtual Machine Control Structure'. It is meant to be used by the hypervisor to manage the 
+state of the VM. A VMM can use a separate VMCS for each VM, or each virtual processor. It essentially has 
+has all of the info that allow the VMM to control the VM and is organized into 6 logical groups. 
+Guest-state area, host-state area, VM-execution control fields, VM-exit control fields, VM-entrry control 
+fields, and VM-exit information fields. 
 \end{solution}
 
 
 \section{Question [1 point]}
 
-What assembly instruction initializes the \texttt{vmcs} pointer? In other words, how do we change the \texttt{vmcs} pointer?
+What assembly instruction initializes the \texttt{vmcs} pointer? 
+In other words, how do we change the \texttt{vmcs} pointer?
 
 \begin{solution}
-Your answer here.
+First, memory needs to be allocated for the new VMCS. Then, VMCLEAR is used to initialize the VMCS 
+and set all of its fields to default values. VMPTRLD is then used to load the new pointer. After that, 
+the commands VMLAUNCH, VMREAD, VMRESUME, and VMWRITE are used to modify the current VMCS. 
 \end{solution}
 
 
