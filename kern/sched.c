@@ -50,8 +50,9 @@ sched_yield(void)
             /* Your code here */
 			if(envs[k].env_type == ENV_TYPE_GUEST)
 			{
-				env_run(&envs[k]);
-			}		
+				vmxon();
+			}
+			env_run(&envs[k]);
 		}
 	}
 
@@ -59,8 +60,10 @@ sched_yield(void)
         /* Your code here */
 		if(envs[k].env_type == ENV_TYPE_GUEST)
 		{
-			env_run(curenv);
+			vmxon();
 		}
+		env_run(curenv);
+
 	}
 
 	// sched_halt never returns
