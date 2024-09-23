@@ -376,7 +376,6 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	e->env_parent_id = parent_id;
 	e->env_type = ENV_TYPE_USER;
 	e->env_status = ENV_RUNNABLE;
-	e->env_runs = 1;
 
 	// Clear out all the saved register state,
 	// to prevent the register values

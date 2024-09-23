@@ -59,15 +59,11 @@ bool vmx_sel_resume(int num) {
  *  to simplify the implementation.
  */
 bool vmx_check_support() {
-	cprintf("Here 0.\n");
 	uint32_t eax, ebx, ecx, edx;
-	cprintf("Here 1.\n");
 	cpuid( 0, &eax, &ebx, &ecx, &edx );
-	cprintf("Here 1.1.\n");
 	
 	if(BIT(ecx,5))
 	{
-		cprintf("Here 1.2.\n");
 		cprintf("[VMM] VMX extension is supported.\n");
 		return true;
 	}
@@ -91,21 +87,14 @@ bool vmx_check_support() {
  *   EPT is available.
  */
 bool vmx_check_ept() {
-
-	uint64_t vmxBasic = read_msr(IA32_VMX_PROCBASED_CTLS);
-	cprintf("Here 2.\n");
-	if(BIT(vmxBasic,63))
+	uint64_t vmxControls = read_msr(IA32_VMX_PROCBASED_CTLS);
+	if(BIT(vmxControls,63))
 	{
-		cprintf("Here 3.\n");
 		cprintf("[VMM] Secondary controls are supported.\n");
-		cprintf("Here 4.\n");
 		uint64_t proc_based_ctls2 = read_msr(IA32_VMX_PROCBASED_CTLS2);
-		cprintf("Here 5.\n");
-		if(BIT(proc_based_ctls2,1))
+		if(BIT(proc_based_ctls2,33))
 		{
-			cprintf("Here 6.\n");
 			cprintf("[VMM] EPT extension is supported.\n");
-			cprintf("Here 7.\n");
 			return true;
 		}
 	}
