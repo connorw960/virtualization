@@ -53,7 +53,7 @@
 What does the \texttt{cpuid} assembly instruction do in this function?
 
 \begin{solution}
-The overall purpose of this instruction is to gather information based off of the `info' flag 
+The overall purpose of this instruction is to gather information about the CPU based off of the `info' flag 
 (what it is set to determines what info is retrieved). It will populate various registers with the 
 desired info. Then it takes the results from the 
 registers specified and assigns them to the variables eax, ebx, ecx, and edx. 
@@ -66,7 +66,7 @@ How is the function providing values back to you to use?
 
 \begin{solution}
 The function is assigning the values into pointers we fed into the function. We will be able to 
-access these pointers later on. 
+access these pointers later on since they were passed by reference. 
 \end{solution}
 
 
@@ -75,11 +75,16 @@ access these pointers later on.
 What are the results of \texttt{eax}, \texttt{ecx}, and \texttt{ebx} values in hexadecimal?
 
 \begin{solution}
-    \begin{itemize}
-        \item eax: 0x4
-        \item ecx: 0x444d4163
-        \item ebx: 0x68747541
-    \end{itemize}
+    \texttt{\newline
+    (gdb) p/x eax
+    0x4 \newline
+    (gdb) p/x ebx
+     0x756e6547 \newline
+    (gdb) p/x ecx
+    0x6c65746e\newline
+    (gdb) p/x edx
+    0x49656e69\newline
+    }
 \end{solution}
 
 
@@ -92,7 +97,7 @@ The \href{https://en.wikipedia.org/wiki/CPUID}{Wikipedia page} for the cpuid ins
 may help you interpret this output.
 
 \begin{solution}
-Your answer here.
+The string evaluates to GenuineIntel.
 \end{solution}
 
 
@@ -103,7 +108,7 @@ There is a reference in each \texttt{Env} struct for another struct called
 
 \begin{solution}
 It contains the physical memory size, the vmcs pointer referenced in later questions, an exception bitmap, an 
-I/O bitmap, and an MSR load/store area. Essentially, it contains all of the info related to a guest VM in 
+I/O bitmap, and an MSR load/store area. Essentially, it contains all of the info related to a guest VM  
 and what might be needed to manage it. 
 \end{solution}
 
