@@ -47,19 +47,17 @@ sched_yield(void)
 		k = (j + i) % NENV;
 		// If this environment is runnable, run it.
 		if (envs[k].env_status == ENV_RUNNABLE) {
-            if (envs[k].env_type == ENV_TYPE_GUEST) 
-			{
-				vmxon();
-			}
+			#ifndef VMM_GUEST
+			vmxon();
+			#endif
 			env_run(&envs[k]);
 		}
 	}
 
 	if (curenv && curenv->env_status == ENV_RUNNING) {
-        if (curenv->env_type == ENV_TYPE_GUEST) 
-		{
-			vmxon();
-		}
+        #ifndef VMM_GUEST
+		vmxon();
+		#endif
 		env_run(curenv);
 	}
 
