@@ -60,8 +60,12 @@ bool vmx_sel_resume(int num) {
  */
 bool vmx_check_support() {
 	uint32_t eax, ebx, ecx, edx;
-	cpuid( 0, &eax, &ebx, &ecx, &edx );
-	/* Your code here */
+	cpuid( 1, &eax, &ebx, &ecx, &edx );
+	if(BIT(ecx,5) == 1)
+	{
+		cprintf("[VMM] VMX extension is supported.\n");
+		return true;
+	}
     panic("vmx_check_support not implemented\n");
 	cprintf("[VMM] VMX extension not supported.\n");
 	return false;
@@ -81,7 +85,17 @@ bool vmx_check_support() {
  *   EPT is available.
  */
 bool vmx_check_ept() {
-	/* Your code here */
+	uint64_t vmxControls = read_msr(IA32_VMX_PROCBASED_CTLS);
+	if(BIT(vmxControls,63) == 1)
+	{
+		cprintf("[VMM] Secondary controls are supported.\n");
+		uint64_t proc_based_ctls2 = read_msr(IA32_VMX_PROCBASED_CTLS2);
+		if(BIT(proc_based_ctls2,33) == 1)
+		{
+			cprintf("[VMM] EPT extension is supported.\n");
+			return true;
+		}
+	}
     panic("vmx_check_ept not implemented\n");
 	cprintf("[VMM] EPT extension not supported.\n");
 	return false;
@@ -468,6 +482,9 @@ void asm_vmrun(struct Trapframe *tf) {
 	// of cr2 of the guest.
 
 	// Hint, Lab 0: tf_ds should have the number of runs, prior to entering the assembly!!
+	// e (the env we got the trapframe from) and curenv are the same at this point,
+	// because asm_vmrun is called after setting the curenv, so we can just 
+	// reference curenv to get the number of runs here.
 	tf->tf_ds = curenv->env_runs;
 	tf->tf_es = 0;
 	unlock_kernel();
@@ -605,7 +622,7 @@ int vmx_vmrun( struct Env *e ) {
 
 	// Hint, Lab 0: The following if statement should be true when the environment has only run once.
 	// Replace the conditional to use your new variable!
-	if( e->env_runs == 1) {
+	if (e->env_runs == 1) {
 		physaddr_t vmcs_phy_addr = PADDR(e->env_vmxinfo.vmcs);
 
 		// Call VMCLEAR on the VMCS region.

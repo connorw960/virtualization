@@ -88,6 +88,7 @@ struct Env {
 #line 93 "../inc/env.h"
 	struct VmxGuestInfo env_vmxinfo;
 #line 95 "../inc/env.h"
+
 };
 
 #endif // !JOS_INC_ENV_H
