@@ -48,7 +48,48 @@ static inline int epte_present(epte_t epte)
 //       bit at the last level entry is sufficient (and the bookkeeping is much simpler).
 static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 			  int create, epte_t **epte_out) {
-    /* Your code here */
+	
+	// Check if eptrt is NULL
+	if (eptrt == NULL)
+	{
+        return -E_INVAL;
+	}
+
+    uintptr_t gpa_addr = (uintptr_t)gpa;
+    epte_t *pte = eptrt;  // Start at the root
+
+    // Iterate over EPT levels
+    for (int i = 0; i < EPT_LEVELS; i++) {
+		int index = ADDR_TO_IDX(gpa_addr,i); // Extract the index for this level
+        // Check if the entry exists
+        if (pte[index] = PTE_P) 
+		{
+			pte = PTE_ADDR(pte[index]);
+        } 
+		else 
+		{
+            // We can't create it
+            if (!create) 
+			{
+                return -E_NO_ENT;
+            }
+
+            // Allocate new page for the intermediate EPT entry
+            epte_t *new_page = (epte_t *)kmalloc(PGSIZE);
+            if (new_page == NULL) 
+			{
+                return -E_NO_MEM;
+            }
+
+            // Initialize the new page and set permissions
+            memset(new_page, 0, PGSIZE);
+            pte[index] = (uintptr_t)new_page | __EPTE_FULL;  // Set the entry with full permissions
+            pte = new_page;  // Move to the new page for the next level
+        }
+    }
+
+	*epte_out = pte;
+
     return 0;
 }
 
@@ -123,9 +164,26 @@ int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
 // Hint: use ept_lookup_gpa to create the intermediate
 //       ept levels, and return the final epte_t pointer.
 //       You should set the type to EPTE_TYPE_WB and set __EPTE_IPAT flag.
-int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,
-        int overwrite) {
-    /* Your code here */
+int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,int overwrite) {
+	// Lookup or create the intermediate EPT levels for the GPA
+	epte_t* pte;
+    int r = ept_lookup_gpa(eptrt, gpa, 1, &pte);
+
+	// Check if memory allocation failed
+    if (pte == NULL)
+	{
+        return -E_NO_MEM;
+    }
+
+    // Check if a mapping already exists
+    if (epte_present(*pte) && !overwrite)
+	{
+        return -E_INVAL;
+    }
+
+    // Set the EPT entry
+    *pte = (PTE_ADDR(hva) | EPTE_TYPE_WB | __EPTE_IPAT | perm);
+
     return 0;
 }
 
