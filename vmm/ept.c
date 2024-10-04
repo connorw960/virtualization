@@ -55,17 +55,16 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
         return -E_INVAL;
 	}
 
-    uintptr_t gpa_addr = (uintptr_t)gpa;
-    epte_t *pte = eptrt;  // Start at the root
-
     // Iterate over EPT levels
-    for (int i = 0; i < EPT_LEVELS; i++) {
-		int index = ADDR_TO_IDX(gpa_addr,i); // Extract the index for this level
-        // Check if the entry exists
-        if (pte[index] = PTE_P) 
+	epte_t *pte = eptrt;  // Start at the root
+	for (int i = EPT_LEVELS - 1; i > 0; --i ) 
+	{
+		int idx = ADDR_TO_IDX(gpa, i);
+		if (epte_present(pte[idx])) 
 		{
-			pte = PTE_ADDR(pte[index]);
-        } 
+			// Already exists, move on to next level
+			pte = (epte_t *) epte_page_vaddr(pte[idx]);
+		}
 		else 
 		{
             // We can't create it
@@ -83,12 +82,12 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 
             // Initialize the new page and set permissions
             memset(new_page, 0, PGSIZE);
-            pte[index] = (uintptr_t)new_page | __EPTE_FULL;  // Set the entry with full permissions
+            pte[idx] = (uintptr_t)new_page | __EPTE_FULL;  // Set the entry with full permissions
             pte = new_page;  // Move to the new page for the next level
-        }
-    }
+        }		
+	}
 
-	*epte_out = pte;
+	*epte_out = epte_addr(pte);
 
     return 0;
 }
@@ -164,10 +163,10 @@ int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
 // Hint: use ept_lookup_gpa to create the intermediate
 //       ept levels, and return the final epte_t pointer.
 //       You should set the type to EPTE_TYPE_WB and set __EPTE_IPAT flag.
-int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,int overwrite) {
+int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm, int overwrite) {
 	// Lookup or create the intermediate EPT levels for the GPA
 	epte_t* pte;
-    int r = ept_lookup_gpa(eptrt, gpa, 1, &pte);
+    ept_lookup_gpa(eptrt, gpa, 1, &pte);
 
 	// Check if memory allocation failed
     if (pte == NULL)
@@ -176,13 +175,13 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,int overwrite)
     }
 
     // Check if a mapping already exists
-    if (epte_present(*pte) && !overwrite)
+    if (epte_present(pte) && !overwrite)
 	{
         return -E_INVAL;
     }
 
     // Set the EPT entry
-    *pte = (PTE_ADDR(hva) | EPTE_TYPE_WB | __EPTE_IPAT | perm);
+    pte = (PTE_ADDR(hva) | EPTE_TYPE_WB | __EPTE_IPAT | perm);
 
     return 0;
 }
