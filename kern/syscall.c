@@ -483,7 +483,7 @@ sys_ept_map(envid_t srcenvid, void *srcva,
 		return -E_INVAL;
 
 	// Map page using EPT
-    if (ept_map_hva2gpa(guest_env->env_pml4e, srcva, guest_pa, perm, 0) < 0) {
+    if (ept_map_hva2gpa(guest_env->env_pml4e, srcva, guest_pa, perm, 1) < 0) {
         return -E_NO_MEM; 
     }
 
