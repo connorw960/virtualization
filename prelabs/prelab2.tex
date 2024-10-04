@@ -50,10 +50,16 @@
 
 \section{Question [1 point]}
 
-What does it mean for there to be EPT support, vs. software driven virtualization? How do we know our VM has EPT support?
+What does it mean for there to be EPT support, 
+vs. software driven virtualization? 
+How do we know our VM has EPT support?
 
 \begin{solution}
-Your answer here.
+At a high level, EPT is hardware assisted virtualization. Really, EPT vs. software 
+driven comes down to using extended page tables or shadow page tables. 
+
+We know out VM has EPT support by looking certain bits in the CTLS2 MSR. (Base assumption is 
+we are using an Intel processor.)
 \end{solution}
 
 
@@ -63,13 +69,20 @@ ELF Headers:
 What is an ELF header? What does it do?
 
 \begin{solution}
-Your answer here.
+An ELF (Executable and Linkable Format) header is a portion of ELF files (realy any executable file e.g. *.bin) 
+that contains key info that the OS uses to correctly interpret the ELF files. It contains information 
+such as whether the file is meant for a 32 or 64 bit architecture, what type of file it is, the target OS ABI,
+ the memory address of the entry point, and much more. Essentially it tells the OS how to run the executable. 
 \end{solution}
 
 
 \section{Question [1 point]}
 
-Set a breakpoint at the function \texttt{load\_icode\(\)} in env.c What do you notice about the Proghdr object? What kinds of metadata does the object have? What is this function doing? It is described in the function header, but try to put it in your own words.
+Set a breakpoint at the function \texttt{load\_icode\(\)} in env.c 
+What do you notice about the Proghdr object? 
+What kinds of metadata does the object have? 
+What is this function doing? It is described in the function header, 
+but try to put it in your own words.
 
 \begin{solution}
 Your answer here.
@@ -78,7 +91,10 @@ Your answer here.
 
 \section{Question [1 point]}
 
-In our codebase, \texttt{load\_icode\(\)} does the work of loading the ELF binary image into the environment's user memory. Looking at this function, where does the memory for the Env get allocated? Where does the memory for the ELF header get allocated? Hint: you may have to check out what some constant values mean.
+In our codebase, \texttt{load\_icode\(\)} does the work of loading the ELF 
+binary image into the environment's user memory. Looking at this function, 
+where does the memory for the Env get allocated? Where does the memory for the ELF header 
+get allocated? Hint: you may have to check out what some constant values mean.
 
 \begin{solution}
 Your answer here.
@@ -87,10 +103,17 @@ Your answer here.
 
 \section{Question [1 point]}
 
-The first function you implement in this project will have you check many errors, prior to the actual function logic. What are some of the reasons why we must do this in OS level code that the user never sees?
+The first function you implement in this project will have you check many errors, 
+prior to the actual function logic. What are some of the reasons why we must do this 
+in OS level code that the user never sees?
 
 \begin{solution}
-Your answer here.
+Errors in the OS can be catastrophic. This is the reason we do OS development inside a VM so we can just reload 
+to the last stable state when it all falls apart. 
+So many of the reasons we do error checking at O level code are the same as user level code: 
+stability, security, debugging, overall experience, best practices etc. But, since the 
+code is at an OS level we need to account for nearly every error that can happen so there aren't 
+severe downstream effects. 
 \end{solution}
 
 
