@@ -166,7 +166,11 @@ int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
 int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm, int overwrite) {
 	// Lookup or create the intermediate EPT levels for the GPA
 	epte_t* pte;
-    ept_lookup_gpa(eptrt, gpa, 1, &pte);
+    int r = ept_lookup_gpa(eptrt, gpa, 1, &pte);
+	if(r < 0)
+	{
+		return r;
+	}
 
 	// Check if memory allocation failed
     if (pte == NULL)
@@ -181,7 +185,8 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm, int overwrite
     }
 
     // Set the EPT entry
-    pte = (PTE_ADDR(hva) | EPTE_TYPE_WB | __EPTE_IPAT | perm);
+	physaddr_t hpa = epte_addr(hva);
+    *pte = (PTE_ADDR(hpa) | EPTE_TYPE_WB | __EPTE_IPAT | perm);
 
     return 0;
 }
