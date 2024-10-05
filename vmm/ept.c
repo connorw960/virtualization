@@ -57,7 +57,7 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 
     // Iterate over EPT levels
 	epte_t *pte = eptrt;  // Start at the root
-	for (int i = EPT_LEVELS - 1; i > 0; --i ) 
+	for (int i = EPT_LEVELS - 1; i >= 0; --i ) 
 	{
 		int idx = ADDR_TO_IDX(gpa, i);
 		if (epte_present(pte[idx])) 
@@ -87,7 +87,7 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
         }		
 	}
 
-	*epte_out = epte_addr(pte);
+	*epte_out = &pte[ADDR_TO_IDX(gpa,0)];
 
     return 0;
 }
@@ -179,7 +179,7 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm, int overwrite
     }
 
     // Check if a mapping already exists
-    if (epte_present(pte) && !overwrite)
+    if (epte_present(*pte) && !overwrite)
 	{
         return -E_INVAL;
     }

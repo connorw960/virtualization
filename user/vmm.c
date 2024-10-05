@@ -19,8 +19,6 @@
 static int
 map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz, 
 	      int fd, size_t filesz, off_t fileoffset ) {
-	/* Your code here */
-	return -E_NO_SYS;
 } 
 
 // Read the ELF headers of kernel file specified by fname,
@@ -31,8 +29,7 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 // Hint: compare with ELF parsing in env.c, and use map_in_guest for each segment.
 static int
 copy_guest_kern_gpa( envid_t guest, char* fname ) {
-	/* Your code here */
-	return -E_NO_SYS;
+
 }
 
 void

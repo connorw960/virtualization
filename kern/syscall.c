@@ -472,7 +472,7 @@ sys_ept_map(envid_t srcenvid, void *srcva,
 	{
 		return -E_INVAL;
 	}
-	if (guest_pa >= guest_env->elf || guest_pa != ROUNDDOWN(guest_pa, PGSIZE))
+	if (guest_pa >= (void*) UTOP-1 || guest_pa != ROUNDDOWN(guest_pa, PGSIZE))
 	{
 		return -E_INVAL;
 	}
