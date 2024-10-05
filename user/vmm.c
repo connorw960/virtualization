@@ -84,6 +84,7 @@ copy_guest_kern_gpa( envid_t guest, char* fname ) {
 	int fd, i, r;
 	struct Elf *elf;
 	struct Proghdr *ph, *eph;
+	struct Env *e;
 	int perm;
 
 	// Open the file and set fd
@@ -115,18 +116,43 @@ copy_guest_kern_gpa( envid_t guest, char* fname ) {
 	{
 		if (ph->p_type == ELF_PROG_LOAD)
 		{
-			// Set perms
-			perm = PTE_P | PTE_U;
-			if (ph->p_flags & ELF_PROG_FLAG_WRITE)
-			{
-				perm |= PTE_W;
-			}
 			// Map to guest
 			if ((r = map_in_guest(guest, ph->p_pa, ph->p_memsz, fd, ph->p_filesz, ph->p_offset)) < 0)
 			{
 				close(fd);
 				return -E_NO_SYS;
 			}
+		}
+	}
+
+	// Get env 
+	if((r = envid2env(guest,&e)) < 0)
+	{
+		return r;
+	}
+
+	// Do env stuff
+	region_alloc(e, (void*) (USTACKTOP - PGSIZE), PGSIZE);
+	e->env_tf.tf_rip    = elf->e_entry;
+	e->env_tf.tf_rsp    = USTACKTOP; //keeping stack 8 byte aligned
+
+	// Do debug stuff
+	uintptr_t debug_address = USTABDATA;
+	struct Secthdr *sh = (struct Secthdr *)(((uint8_t *)elf + elf->e_shoff));
+	struct Secthdr *shstr_tab = sh + elf->e_shstrndx;
+	struct Secthdr* esh = sh + elf->e_shnum;
+	for(;sh < esh; sh++) {
+		char* name = (char*)((uint8_t*)elf + shstr_tab->sh_offset) + sh->sh_name;
+		if(!strcmp(name, ".debug_info") || !strcmp(name, ".debug_abbrev")
+			|| !strcmp(name, ".debug_line") || !strcmp(name, ".eh_frame")
+			|| !strcmp(name, ".debug_str")) {
+			// Map to guest
+			if ((r = map_in_guest(guest, debug_address, sh->sh_size, fd, sh->sh_size, sh->sh_offset)) < 0)
+			{
+				close(fd);
+				return -E_NO_SYS;
+			}
+			debug_address += sh->sh_size;
 		}
 	}
 
