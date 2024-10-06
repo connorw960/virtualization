@@ -63,7 +63,7 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 		if (epte_present(pte[idx])) 
 		{
 			// Already exists, move on to next level
-			// pte = (epte_t *) epte_page_vaddr(pte[idx]);
+			pte = (epte_t *) epte_page_vaddr(pte[idx]);
 		}
 		else 
 		{

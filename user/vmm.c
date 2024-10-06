@@ -49,11 +49,6 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 				{
 					return r;
 				}
-				// Check if we filled a full page, if not fill the rest with zeros
-				if(readNum < PGSIZE)
-				{
-					memset((void*)((uintptr_t)UTEMP + readNum), 0, (PGSIZE - readNum));
-				}
 			}		
 		} 
 
