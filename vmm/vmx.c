@@ -695,7 +695,6 @@ int vmx_vmrun( struct Env *e ) {
 
 	vmcs_write64( VMCS_GUEST_RSP, curenv->env_tf.tf_rsp  );
 	vmcs_write64( VMCS_GUEST_RIP, curenv->env_tf.tf_rip );
-    panic("asm_vmrun is incomplete");
 	asm_vmrun( &e->env_tf );
 	return 0;
 }

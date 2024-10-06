@@ -466,45 +466,38 @@ sys_ept_map(envid_t srcenvid, void *srcva,
 	{
         return -E_BAD_ENV;
     }
-	cprintf("Here 22\n");
 
 	// Validate srcva and guest_pa
 	if (srcva >= (void*) UTOP || srcva != ROUNDDOWN(srcva, PGSIZE))
 	{
 		return -E_INVAL;
 	}
-	cprintf("Here 2\n");
 	if (guest_pa >= (void*) UTOP-1 || guest_pa != ROUNDDOWN(guest_pa, PGSIZE))
 	{
 		return -E_INVAL;
 	}
-	cprintf("Here 23\n");
 
     // Check if srcva is mapped in srcenvid's address space
     if ((pp = page_lookup(src_env->env_pml4e, srcva, &src_pte)) == 0)
 	{
 		return -E_INVAL;
 	}
-	cprintf("Here 24\n");
 
 	// Check perm
     if ((~perm & (PTE_U|PTE_P)) || (perm & ~PTE_SYSCALL))
 	{
 		return -E_INVAL;
 	}
-	cprintf("Here 25\n");
 	if ((perm & PTE_W) && !(*src_pte & PTE_W))
 	{
 		return -E_INVAL;
 	}
-	cprintf("Here 26\n");
 
 	// Map page using EPT
     if (ept_map_hva2gpa(guest_env->env_pml4e, page2kva(pp), guest_pa, perm, 1) < 0) 
 	{
         return -E_NO_MEM; 
     }
-	cprintf("Here 27\n");
 
     return 0;
 }
