@@ -21,53 +21,59 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 	      int fd, size_t filesz, off_t fileoffset ) {
 
 	int i, r;
+	cprintf("Here 10\n");
 
 	if (gpa >= UTOP || gpa + memsz > UTOP) {
         return -E_INVAL; // Invalid guest physical address
     }
 
+	cprintf("Here 11\n");
     for (i = 0; i < memsz; i += PGSIZE)
     {
 		// Read data into buffer - find how much (either a full page worth or less)
 		size_t readNum = MIN(PGSIZE, filesz - (fileoffset + i));
+		cprintf("Here 12\n");
+		if((r = sys_page_alloc(0,UTEMP,__EPTE_FULL)) < 0)
+		{
+			return r;
+		}
+		cprintf("Here 12.5\n");
 
 		// Need to get the data from the file
 		if (i < filesz)
 		{
+			cprintf("Here 13\n");
 			if(readNum > 0)
 			{
+				cprintf("Here 14\n");
+				
+				cprintf("Here 14.5\n");
 				if ((r = seek(fd, fileoffset + i)) < 0)
 				{
 					return r;
 				}
+				cprintf("Here 15\n");
 				if ((r = readn(fd, UTEMP, readNum)) < 0)
 				{
 					return r;
 				}
-
+				cprintf("Here 16\n");
 				// Check if we filled a full page, if not fill the rest with zeros
 				if(readNum < PGSIZE)
 				{
 					memset((void*)((uintptr_t)UTEMP + readNum), 0, (PGSIZE - readNum));
 				}
-			}
-			else
-			{
-				// Fill page with no data
-				memset(UTEMP, 0, PGSIZE);
-			}
-			
+				cprintf("Here 17\n");
+			}		
 		} 
-		else
-		{
-			// Fill page with no data
-			memset(UTEMP, 0, PGSIZE);
-		}
 
+		cprintf("Here 20\n");
 		if ((r = sys_ept_map(thisenv->env_id, UTEMP, guest, (void *) (gpa+i), __EPTE_FULL)) < 0)
 		{
 			return r;
 		}
+		sys_page_unmap(0, UTEMP);
+		cprintf("Here 21\n");
     }
     return 0;
 } 
@@ -86,21 +92,25 @@ copy_guest_kern_gpa( envid_t guest, char* fname ) {
 	struct Proghdr *ph, *eph;
 	struct Env *e;
 	int perm;
+	cprintf("Here 1\n");
 
 	// Open the file and set fd
 	if ((fd = open(fname, O_RDONLY)) < 0)
 	{
     	return fd;
 	}
+	cprintf("Here 2\n");
 
 	// Read the ELF header
     if ((r = readn(fd, elf_buf, sizeof(elf_buf))) != sizeof(elf_buf)) {
         close(fd);
         return -E_NOT_EXEC; // Failed to read the ELF header
     }
+	cprintf("Here 3\n");
 
 	// Set elf
 	elf = (struct Elf*) elf_buf;
+	cprintf("Here 4\n");
 
 	// Check e_magic
 	if ( elf->e_magic != ELF_MAGIC) 
@@ -108,54 +118,28 @@ copy_guest_kern_gpa( envid_t guest, char* fname ) {
     	close(fd);
     	return -E_NOT_EXEC;
 	}
+	cprintf("Here 5\n");
 
 	// Get program header
 	ph = (struct Proghdr*) (elf_buf + elf->e_phoff);
 	eph = ph + elf->e_phnum;
+	cprintf("Here 6\n");
 	for(;ph < eph; ph++)
 	{
 		if (ph->p_type == ELF_PROG_LOAD)
 		{
+			cprintf("Here 7\n");
 			// Map to guest
 			if ((r = map_in_guest(guest, ph->p_pa, ph->p_memsz, fd, ph->p_filesz, ph->p_offset)) < 0)
 			{
 				close(fd);
 				return -E_NO_SYS;
 			}
+			cprintf("Here 8\n");
 		}
 	}
 
-	// Get env 
-	if((r = envid2env(guest,&e)) < 0)
-	{
-		return r;
-	}
-
-	// Do env stuff
-	region_alloc(e, (void*) (USTACKTOP - PGSIZE), PGSIZE);
-	e->env_tf.tf_rip    = elf->e_entry;
-	e->env_tf.tf_rsp    = USTACKTOP; //keeping stack 8 byte aligned
-
-	// Do debug stuff
-	uintptr_t debug_address = USTABDATA;
-	struct Secthdr *sh = (struct Secthdr *)(((uint8_t *)elf + elf->e_shoff));
-	struct Secthdr *shstr_tab = sh + elf->e_shstrndx;
-	struct Secthdr* esh = sh + elf->e_shnum;
-	for(;sh < esh; sh++) {
-		char* name = (char*)((uint8_t*)elf + shstr_tab->sh_offset) + sh->sh_name;
-		if(!strcmp(name, ".debug_info") || !strcmp(name, ".debug_abbrev")
-			|| !strcmp(name, ".debug_line") || !strcmp(name, ".eh_frame")
-			|| !strcmp(name, ".debug_str")) {
-			// Map to guest
-			if ((r = map_in_guest(guest, debug_address, sh->sh_size, fd, sh->sh_size, sh->sh_offset)) < 0)
-			{
-				close(fd);
-				return -E_NO_SYS;
-			}
-			debug_address += sh->sh_size;
-		}
-	}
-
+	cprintf("Here 9\n");
 	// Close and success
 	close(fd);
 	return 0;		

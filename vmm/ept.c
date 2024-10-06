@@ -48,46 +48,59 @@ static inline int epte_present(epte_t epte)
 //       bit at the last level entry is sufficient (and the bookkeeping is much simpler).
 static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 			  int create, epte_t **epte_out) {
-	
+	cprintf("Here 35\n");
+	int i;
 	// Check if eptrt is NULL
 	if (eptrt == NULL)
 	{
         return -E_INVAL;
 	}
+	cprintf("Here 36\n");
 
     // Iterate over EPT levels
 	epte_t *pte = eptrt;  // Start at the root
-	for (int i = EPT_LEVELS - 1; i >= 0; --i ) 
+	for (i = EPT_LEVELS - 1; i >= 0; --i ) 
 	{
+		cprintf("Here 37\n");
 		int idx = ADDR_TO_IDX(gpa, i);
 		if (epte_present(pte[idx])) 
 		{
+			cprintf("Here 38\n");
 			// Already exists, move on to next level
 			pte = (epte_t *) epte_page_vaddr(pte[idx]);
+			cprintf("Here 39\n");
 		}
 		else 
 		{
+			cprintf("Here 40\n");
             // We can't create it
             if (!create) 
 			{
                 return -E_NO_ENT;
             }
-
+			cprintf("Here 41\n");
             // Allocate new page for the intermediate EPT entry
-            epte_t *new_page = (epte_t *)kmalloc(PGSIZE);
-            if (new_page == NULL) 
+            struct PageInfo *p = page_alloc(ALLOC_ZERO);
+			cprintf("Here 42\n");
+            if (p == NULL) 
 			{
                 return -E_NO_MEM;
             }
+			cprintf("Here 43\n");
+			p->pp_ref += 1;
+			cprintf("Here 44\n");
+
 
             // Initialize the new page and set permissions
-            memset(new_page, 0, PGSIZE);
-            pte[idx] = (uintptr_t)new_page | __EPTE_FULL;  // Set the entry with full permissions
-            pte = new_page;  // Move to the new page for the next level
+            pte[idx] = (uintptr_t)p | __EPTE_FULL;  // Set the entry with full permissions
+			cprintf("Here 45\n");
+           	pte = (epte_t *) epte_page_vaddr(pte[idx]);  // Move to the new page for the next level
+			cprintf("Here 46\n");
         }		
 	}
-
+	cprintf("Here 47\n");
 	*epte_out = &pte[ADDR_TO_IDX(gpa,0)];
+	cprintf("Here 48\n");
 
     return 0;
 }
@@ -166,27 +179,34 @@ int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
 int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm, int overwrite) {
 	// Lookup or create the intermediate EPT levels for the GPA
 	epte_t* pte;
+	cprintf("Here 28\n");
     int r = ept_lookup_gpa(eptrt, gpa, 1, &pte);
+	cprintf("Here 29\n");
 	if(r < 0)
 	{
 		return r;
 	}
+	cprintf("Here 30\n");
 
 	// Check if memory allocation failed
     if (pte == NULL)
 	{
         return -E_NO_MEM;
     }
+	cprintf("Here 31\n");
 
     // Check if a mapping already exists
     if (epte_present(*pte) && !overwrite)
 	{
         return -E_INVAL;
     }
+	cprintf("Here 32\n");
 
     // Set the EPT entry
-	physaddr_t hpa = epte_addr(hva);
+	physaddr_t hpa = epte_addr((epte_t)hva);
+	cprintf("Here 33\n");
     *pte = (PTE_ADDR(hpa) | EPTE_TYPE_WB | __EPTE_IPAT | perm);
+	cprintf("Here 34\n");
 
     return 0;
 }
