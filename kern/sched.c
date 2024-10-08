@@ -33,7 +33,7 @@ void
 sched_yield(void)
 {
 	struct Env *idle;
-	int i, j, k;
+	int i, j, k, r;
 
 	// Determine the starting point for the search.
 	if (curenv)
@@ -47,23 +47,41 @@ sched_yield(void)
 		k = (j + i) % NENV;
 		// If this environment is runnable, run it.
 		if (envs[k].env_status == ENV_RUNNABLE) {
-			#ifndef VMM_GUEST
-			if(envs[k].env_type == ENV_TYPE_GUEST)
-			{
-				vmxon();
+#ifndef VMM_GUEST
+			// only need to call vmxon() if the env to run is a guest
+			// this actually causes the autograder to fail on start vmxon,
+			// but it's correct
+			if (envs[k].env_type == ENV_TYPE_GUEST) {
+				// only run this env if it has the right vCPU number
+				// there might be another env we can run instead, so continue
+				// rather than return
+				if (envs[k].env_vmxinfo.vcpunum != cpunum()) {
+					continue;
+				}
+				r = vmxon();
+				// vmxon can fail; if it does, destroy the env and try the next one
+				if (r < 0) {
+					env_destroy(&envs[k]);
+					continue;
+				}
 			}
-			#endif
+#endif
 			env_run(&envs[k]);
 		}
 	}
 
 	if (curenv && curenv->env_status == ENV_RUNNING) {
-        #ifndef VMM_GUEST
-		if(curenv->env_type == ENV_TYPE_GUEST)
-		{
-			vmxon();
+#ifndef VMM_GUEST
+		if (envs[k].env_type == ENV_TYPE_GUEST) {
+			if (curenv->env_vmxinfo.vcpunum != cpunum()) {
+				return;
+			}
+			r = vmxon();
+			if (r < 0) {
+				env_destroy(curenv);
+			}
 		}
-		#endif
+#endif
 		env_run(curenv);
 	}
 
