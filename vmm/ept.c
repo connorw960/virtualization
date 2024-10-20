@@ -163,12 +163,7 @@ int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
 //       ept levels, and return the final epte_t pointer.
 //       You should set the type to EPTE_TYPE_WB and set __EPTE_IPAT flag.
 int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm, int overwrite) {
-	// // Check the permmisions
-	// if((perm & __EPTE_FULL) == 0)
-	// {
-	// 	return -E_INVAL;
-	// }
-
+	
 	// Lookup or create the intermediate EPT levels for the GPA
 	epte_t* pte;
     int r = ept_lookup_gpa(eptrt, gpa, 1, &pte);
@@ -357,7 +352,7 @@ int test_ept_map(void)
 
 	cprintf("Cheers! sys_ept_map seems to work correctly\n");
 	/* stop running after test, as this is just a test run. */
-	// panic("Cheers! sys_ept_map seems to work correctly.\n");
+	panic("Cheers! sys_ept_map seems to work correctly.\n");
 
 	return 0;
 }

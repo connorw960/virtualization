@@ -500,14 +500,8 @@ sys_ept_map(envid_t srcenvid, void *srcva,
 	}
 
 	// Map page using EPT
-	if((perm & PTE_W))
-	{
-		r = ept_map_hva2gpa(guest_env->env_pml4e, (void *)page2kva(pp), (void *)guest_pa, perm, 1);
-	}
-	else
-	{
-		r = ept_map_hva2gpa(guest_env->env_pml4e, (void *)page2kva(pp), (void *)guest_pa, perm, 0);
-	}
+	r = ept_map_hva2gpa(guest_env->env_pml4e, (void *)page2kva(pp), (void *)guest_pa, perm, 0);
+	
 	if(r <0)
 	{
 		return -E_NO_MEM; 
