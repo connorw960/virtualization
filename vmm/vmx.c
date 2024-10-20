@@ -61,14 +61,19 @@ bool vmx_sel_resume(int num) {
 bool vmx_check_support() {
 	uint32_t eax, ebx, ecx, edx;
 	cpuid( 1, &eax, &ebx, &ecx, &edx );
-	if(BIT(ecx,5) == 1)
-	{
-		cprintf("[VMM] VMX extension is supported.\n");
-		return true;
+
+	/*
+	 * From Section 23.6 of the Intel manual: " If CPUID.1:ECX.VMX[bit 5] = 1, 
+	 * then VMX operation is supported." So if the 5th bit of the ecx variable
+	 * after executing cpuid() is a 1, then VMX is supported.
+	 */
+	bool vmx_support = (bool)BIT(ecx, 5);
+	if (vmx_support) {
+		cprintf("Processor supports VMX\n");
+	} else {
+		cprintf("Processor does not support VMX\n");
 	}
-    panic("vmx_check_support not implemented\n");
-	cprintf("[VMM] VMX extension not supported.\n");
-	return false;
+	return vmx_support;
 }
 
 /* This function reads the VMX-specific MSRs
@@ -85,19 +90,23 @@ bool vmx_check_support() {
  *   EPT is available.
  */
 bool vmx_check_ept() {
-	uint64_t vmxControls = read_msr(IA32_VMX_PROCBASED_CTLS);
-	if(BIT(vmxControls,63) == 1)
-	{
-		cprintf("[VMM] Secondary controls are supported.\n");
-		uint64_t proc_based_ctls2 = read_msr(IA32_VMX_PROCBASED_CTLS2);
-		if(BIT(proc_based_ctls2,33) == 1)
-		{
-			cprintf("[VMM] EPT extension is supported.\n");
+	uint64_t msr1, msr2;
+	bool secondary_vmx, ept_support;
+
+	// first, check that secondary VMX controls are enabled by checking 
+	// the primary VMX controls in MSR 0x482
+	msr1 = read_msr(IA32_VMX_PROCBASED_CTLS);
+	secondary_vmx = (bool)BIT(msr1, 63);
+	if (secondary_vmx) {
+		// then, check that EPT is actually supported by checking the 
+		// secondary VMX controls in MSR 0x48b
+		msr2 = read_msr(IA32_VMX_PROCBASED_CTLS2);
+		ept_support = (bool)BIT(msr2, 33);
+		if (ept_support) {
+			cprintf("Processor supports EPT\n");
 			return true;
 		}
-	}
-    panic("vmx_check_ept not implemented\n");
-	cprintf("[VMM] EPT extension not supported.\n");
+	} 
 	return false;
 }
 
@@ -482,9 +491,7 @@ void asm_vmrun(struct Trapframe *tf) {
 	// of cr2 of the guest.
 
 	// Hint, Lab 0: tf_ds should have the number of runs, prior to entering the assembly!!
-	// e (the env we got the trapframe from) and curenv are the same at this point,
-	// because asm_vmrun is called after setting the curenv, so we can just 
-	// reference curenv to get the number of runs here.
+	// e (the env we got the trapframe from) and curenv are the same at this point
 	tf->tf_ds = curenv->env_runs;
 	tf->tf_es = 0;
 	unlock_kernel();
@@ -493,8 +500,7 @@ void asm_vmrun(struct Trapframe *tf) {
 		"push %%rcx \n\t" /* placeholder for guest rcx */
 		"push %%rcx \n\t"
 		/* Set the VMCS rsp to the current top of the frame. */
-		"mov %%rsp, %%rax\n\t"
-		"vmwrite %%rax, %%rdx\n\t"
+		"vmwrite %%rsp, %%rdx\n\t"
 		"1: \n\t"
 		/* Reload cr2 if changed */
 		"mov %c[cr2](%0), %%rax \n\t"
@@ -516,6 +522,7 @@ void asm_vmrun(struct Trapframe *tf) {
 		/* Load guest general purpose registers from the trap frame.  Don't clobber flags.
 		 *
 		 */
+		/* Your code here */
 		"mov %c[rax](%0), %%rax \n\t"
 		"mov %c[rbx](%0), %%rbx \n\t"
 		"mov %c[rdx](%0), %%rdx \n\t"
@@ -530,8 +537,6 @@ void asm_vmrun(struct Trapframe *tf) {
 		"mov %c[r13](%0), %%r13 \n\t"
 		"mov %c[r14](%0), %%r14 \n\t"
 		"mov %c[r15](%0), %%r15 \n\t"
-
-		// %rcxis %0 so we should move it last
 		"mov %c[rcx](%0), %%rcx \n\t"
 		/* GUEST MODE */
 		/* Your code here:
@@ -544,12 +549,14 @@ void asm_vmrun(struct Trapframe *tf) {
 		 * that you don't do any compareison that would clobber the condition code, set
 		 * above.
 		 */
-		"jne .Lvmx_resume\n\t"
-		"vmlaunch\n\t"
-		"jmp .Lvmx_return\n\t"
-		".Lvmx_resume: vmresume\n\t"
-
-		".Lvmx_return: \n\t"
+		// earlier, we set condition codes if env_runs != 1.
+		// if env_runs == 1 (i.e. if we DON'T jne), run vmlaunch and then jump to vmx_return to skip the vmresume instruction
+		// else, jump over the vmlaunch instruction to run vmresume
+		"jne .Llaunched \n\t"
+		" vmlaunch \n\t"
+		"jmp .Lvmx_return \n\t"
+		".Llaunched: vmresume \n\t"
+		".Lvmx_return: "
 
 		/* POST VM EXIT... */
 		"mov %0, %c[wordsize](%%rsp) \n\t"
@@ -558,9 +565,10 @@ void asm_vmrun(struct Trapframe *tf) {
 		 *
 		 * Be careful that the number of pushes (above) and pops are symmetrical.
 		 */
+		/* Your code here */
 		"mov %%rax, %c[rax](%0) \n\t"
 		"mov %%rbx, %c[rbx](%0) \n\t"
-		"pop %c[rcx](%0)\n\t"
+		"popq %c[rcx](%0)\n\t"
 		"mov %%rdx, %c[rdx](%0) \n\t"
 		"mov %%rsi, %c[rsi](%0) \n\t"
 		"mov %%rdi, %c[rdi](%0) \n\t"
@@ -573,10 +581,13 @@ void asm_vmrun(struct Trapframe *tf) {
 		"mov %%r13, %c[r13](%0) \n\t"
 		"mov %%r14, %c[r14](%0) \n\t"
 		"mov %%r15, %c[r15](%0) \n\t"
+		"mov %%rax, %%r10 \n\t"
+		"mov %%rdx, %%r11 \n\t"
+
 		"mov %%cr2, %%rax\n\t"
 		"mov %%rax, %c[cr2](%0)\n\t"
-		"pop  %%rbp \n\t" 
-		"pop  %%rdx \n\t"
+
+		"pop  %%rbp; pop  %%rdx \n\t"
 
 		"setbe %c[fail](%0) \n\t"
 		: : "c"(tf), "d"((unsigned long)VMCS_HOST_RSP),
@@ -661,6 +672,7 @@ int vmx_vmrun( struct Env *e ) {
 
 	// Hint, Lab 0: The following if statement should be true when the environment has only run once.
 	// Replace the conditional to use your new variable!
+	// if( curenv == NULL) {
 	if (e->env_runs == 1) {
 		physaddr_t vmcs_phy_addr = PADDR(e->env_vmxinfo.vmcs);
 
@@ -695,6 +707,7 @@ int vmx_vmrun( struct Env *e ) {
 
 	vmcs_write64( VMCS_GUEST_RSP, curenv->env_tf.tf_rsp  );
 	vmcs_write64( VMCS_GUEST_RIP, curenv->env_tf.tf_rip );
+	// panic("asm_vmrun is incomplete");
 	asm_vmrun( &e->env_tf );
 	return 0;
 }
