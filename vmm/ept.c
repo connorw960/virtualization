@@ -57,7 +57,7 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 
     // Iterate over EPT levels
 	epte_t *pte = eptrt;  // Start at the root
-	for (i = EPT_LEVELS - 1; i >= 0; --i ) 
+	for (i = EPT_LEVELS - 1; i >0; --i ) 
 	{
 		int idx = ADDR_TO_IDX(gpa, i);
 		if (epte_present(pte[idx])) 
@@ -68,7 +68,7 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 		else 
 		{
             // We can't create it
-            if (!create) 
+            if (create == 0) 
 			{
                 return -E_NO_ENT;
             }
@@ -163,6 +163,12 @@ int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
 //       ept levels, and return the final epte_t pointer.
 //       You should set the type to EPTE_TYPE_WB and set __EPTE_IPAT flag.
 int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm, int overwrite) {
+	// // Check the permmisions
+	// if((perm & __EPTE_FULL) == 0)
+	// {
+	// 	return -E_INVAL;
+	// }
+
 	// Lookup or create the intermediate EPT levels for the GPA
 	epte_t* pte;
     int r = ept_lookup_gpa(eptrt, gpa, 1, &pte);
@@ -184,8 +190,8 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm, int overwrite
     }
 
     // Set the EPT entry
-	physaddr_t hpa = epte_addr((epte_t)hva);
-    *pte = (PTE_ADDR(hpa) | EPTE_TYPE_WB | __EPTE_IPAT | perm);
+	physaddr_t hpa = PADDR(hva);
+    *pte = ((uint64_t)hpa | __EPTE_TYPE(EPTE_TYPE_WB) | __EPTE_IPAT | perm);
 
     return 0;
 }
@@ -349,9 +355,9 @@ int test_ept_map(void)
         }
 	cprintf("EPT immediate mapping check passed\n");
 
-	cprintf("Cheers! sys_map_ept seems to work correctly\n");
+	cprintf("Cheers! sys_ept_map seems to work correctly\n");
 	/* stop running after test, as this is just a test run. */
-	panic("Cheers! sys_ept_map seems to work correctly.\n");
+	// panic("Cheers! sys_ept_map seems to work correctly.\n");
 
 	return 0;
 }

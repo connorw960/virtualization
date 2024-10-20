@@ -21,11 +21,6 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 	      int fd, size_t filesz, off_t fileoffset ) {
 
 	int i, r;
-
-	if (gpa >= UTOP || gpa + memsz > UTOP) {
-        return -E_INVAL; // Invalid guest physical address
-    }
-
     for (i = 0; i < memsz; i += PGSIZE)
     {
 		// Read data into buffer - find how much (either a full page worth or less)
@@ -81,13 +76,11 @@ copy_guest_kern_gpa( envid_t guest, char* fname ) {
 	{
     	return fd;
 	}
-
 	// Read the ELF header
     if ((r = readn(fd, elf_buf, sizeof(elf_buf))) != sizeof(elf_buf)) {
         close(fd);
         return -E_NOT_EXEC; // Failed to read the ELF header
     }
-
 	// Set elf
 	elf = (struct Elf*) elf_buf;
 
@@ -97,7 +90,6 @@ copy_guest_kern_gpa( envid_t guest, char* fname ) {
     	close(fd);
     	return -E_NOT_EXEC;
 	}
-
 	// Get program header
 	ph = (struct Proghdr*) (elf_buf + elf->e_phoff);
 	eph = ph + elf->e_phnum;
@@ -113,7 +105,6 @@ copy_guest_kern_gpa( envid_t guest, char* fname ) {
 			}
 		}
 	}
-
 	// Close and success
 	close(fd);
 	return 0;		
