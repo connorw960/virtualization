@@ -349,7 +349,7 @@ int test_ept_map(void)
         }
 	cprintf("EPT immediate mapping check passed\n");
 
-
+	cprintf("Cheers! sys_map_ept seems to work correctly\n");
 	/* stop running after test, as this is just a test run. */
 	panic("Cheers! sys_ept_map seems to work correctly.\n");
 
