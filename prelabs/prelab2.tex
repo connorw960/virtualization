@@ -53,7 +53,7 @@
 What does it mean for there to be EPT support, vs. software driven virtualization? How do we know our VM has EPT support?
 
 \begin{solution}
-Your answer here.
+EPT support allows a virtual machine to have guest physical addresses as defined by intel's VMX x86 architecture extensions. These addresses are then translated into host physical addresses to access memory. Software driven virtualization is done entirely in software. We know our VM has EPT support because we've implemented the function \texttt{vmx\_check\_ept} which checks if the EPT bit is set in the control register \texttt{IA32\_VMX\_PROCBASED\_CTLS2}. 
 \end{solution}
 
 
@@ -63,7 +63,7 @@ ELF Headers:
 What is an ELF header? What does it do?
 
 \begin{solution}
-Your answer here.
+An ELF, Executable and Linkable Format, header defines the file's format. It defines the entry point, start of program and section headers as well as the size and number of program headers.
 \end{solution}
 
 
@@ -72,7 +72,7 @@ Your answer here.
 Set a breakpoint at the function \texttt{load\_icode\(\)} in env.c What do you notice about the Proghdr object? What kinds of metadata does the object have? What is this function doing? It is described in the function header, but try to put it in your own words.
 
 \begin{solution}
-Your answer here.
+The  \texttt{Proghdr} object contains the metadata for a userspace program defined at  \texttt{binary}. The metadata includes the physical and virtual addresses, the offset of the beginning of the program, flags, the type of program, the file and memory sizes, and a memory align value. \texttt{load\_icode\(\)} sets up a user program similar to how the boot loader sets up the OS to run. It sets up memory as defined by the ELF and creates a page for the program.
 \end{solution}
 
 
@@ -81,7 +81,7 @@ Your answer here.
 In our codebase, \texttt{load\_icode\(\)} does the work of loading the ELF binary image into the environment's user memory. Looking at this function, where does the memory for the Env get allocated? Where does the memory for the ELF header get allocated? Hint: you may have to check out what some constant values mean.
 
 \begin{solution}
-Your answer here.
+The memory for an environment is allocated 3 page sizes below the top of the stack's memory. \texttt{region\_alloc(e, (void*) (USTACKTOP - PGSIZE), PGSIZE);}  allocates the environment at  \texttt{USTACKTOP - PGSIZE} where  \texttt{USTACKTOP = (UXSTACKTOP - 2*PGSIZE)} and  \texttt{UXSTACKTOP} is the top of the stack, \texttt{0xef800000}. The memory for the ELF header gets allocated at the virtual address defined in the virtual address at p\_va: \texttt{memcpy((void *)ph->p\_va, (void *)((uint8\_t *)elf + ph->p\_offset), ph->p\_filesz);}.
 \end{solution}
 
 
@@ -90,9 +90,10 @@ Your answer here.
 The first function you implement in this project will have you check many errors, prior to the actual function logic. What are some of the reasons why we must do this in OS level code that the user never sees?
 
 \begin{solution}
-Your answer here.
+If we ran the checks in the user virtual machine, we would be exposing the fact that the OS is running on a virtual machine. If the checks ran in userspace, we would potentially expose data that process shouldn't see. The checks require privileged access to the machine, so only the host OS should have access to it.
 \end{solution}
 
 
 \end{document}
+
 
