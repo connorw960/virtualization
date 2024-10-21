@@ -19,8 +19,41 @@
 static int
 map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz, 
 	      int fd, size_t filesz, off_t fileoffset ) {
-	/* Your code here */
-	return -E_NO_SYS;
+
+	int i, r;
+    for (i = 0; i < memsz; i += PGSIZE)
+    {
+		// Read data into buffer - find how much (either a full page worth or less)
+		size_t readNum = MIN(PGSIZE, filesz - (fileoffset + i));
+		if((r = sys_page_alloc(0,UTEMP,__EPTE_FULL)) < 0)
+		{
+			return r;
+		}
+
+		// Need to get the data from the file
+		if (i < filesz)
+		{
+			if(readNum > 0)
+			{
+				
+				if ((r = seek(fd, fileoffset + i)) < 0)
+				{
+					return r;
+				}
+				if ((r = readn(fd, UTEMP, readNum)) < 0)
+				{
+					return r;
+				}
+			}		
+		} 
+
+		if ((r = sys_ept_map(thisenv->env_id, UTEMP, guest, (void *) (gpa+i), __EPTE_FULL)) < 0)
+		{
+			return r;
+		}
+		sys_page_unmap(0, UTEMP);
+    }
+    return 0;
 } 
 
 // Read the ELF headers of kernel file specified by fname,
@@ -31,8 +64,50 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 // Hint: compare with ELF parsing in env.c, and use map_in_guest for each segment.
 static int
 copy_guest_kern_gpa( envid_t guest, char* fname ) {
-	/* Your code here */
-	return -E_NO_SYS;
+	unsigned char elf_buf[512];
+	int fd, i, r;
+	struct Elf *elf;
+	struct Proghdr *ph, *eph;
+	struct Env *e;
+	int perm;
+
+	// Open the file and set fd
+	if ((fd = open(fname, O_RDONLY)) < 0)
+	{
+    	return fd;
+	}
+	// Read the ELF header
+    if ((r = readn(fd, elf_buf, sizeof(elf_buf))) != sizeof(elf_buf)) {
+        close(fd);
+        return -E_NOT_EXEC; // Failed to read the ELF header
+    }
+	// Set elf
+	elf = (struct Elf*) elf_buf;
+
+	// Check e_magic
+	if ( elf->e_magic != ELF_MAGIC) 
+	{
+    	close(fd);
+    	return -E_NOT_EXEC;
+	}
+	// Get program header
+	ph = (struct Proghdr*) (elf_buf + elf->e_phoff);
+	eph = ph + elf->e_phnum;
+	for(;ph < eph; ph++)
+	{
+		if (ph->p_type == ELF_PROG_LOAD)
+		{
+			// Map to guest
+			if ((r = map_in_guest(guest, ph->p_pa, ph->p_memsz, fd, ph->p_filesz, ph->p_offset)) < 0)
+			{
+				close(fd);
+				return -E_NO_SYS;
+			}
+		}
+	}
+	// Close and success
+	close(fd);
+	return 0;		
 }
 
 void

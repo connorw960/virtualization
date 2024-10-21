@@ -48,7 +48,46 @@ static inline int epte_present(epte_t epte)
 //       bit at the last level entry is sufficient (and the bookkeeping is much simpler).
 static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 			  int create, epte_t **epte_out) {
-    /* Your code here */
+	int i;
+	// Check if eptrt is NULL
+	if (eptrt == NULL)
+	{
+        return -E_INVAL;
+	}
+
+    // Iterate over EPT levels
+	epte_t *pte = eptrt;  // Start at the root
+	for (i = EPT_LEVELS - 1; i >0; --i ) 
+	{
+		int idx = ADDR_TO_IDX(gpa, i);
+		if (epte_present(pte[idx])) 
+		{
+			// Already exists, move on to next level
+			pte = (epte_t *) epte_page_vaddr(pte[idx]);
+		}
+		else 
+		{
+            // We can't create it
+            if (create == 0) 
+			{
+                return -E_NO_ENT;
+            }
+            // Allocate new page for the intermediate EPT entry
+            struct PageInfo *p = page_alloc(ALLOC_ZERO);
+            if (p == NULL) 
+			{
+                return -E_NO_MEM;
+            }
+			p->pp_ref += 1;
+
+
+            // Initialize the new page and set permissions
+            pte[idx] = epte_addr(page2pa(p)) | __EPTE_FULL;  // Set the entry with full permissions
+           	pte = (epte_t *) epte_page_vaddr(pte[idx]);  // Move to the new page for the next level
+        }		
+	}
+	*epte_out = &pte[ADDR_TO_IDX(gpa,0)];
+
     return 0;
 }
 
@@ -123,9 +162,32 @@ int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
 // Hint: use ept_lookup_gpa to create the intermediate
 //       ept levels, and return the final epte_t pointer.
 //       You should set the type to EPTE_TYPE_WB and set __EPTE_IPAT flag.
-int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,
-        int overwrite) {
-    /* Your code here */
+int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm, int overwrite) {
+	
+	// Lookup or create the intermediate EPT levels for the GPA
+	epte_t* pte;
+    int r = ept_lookup_gpa(eptrt, gpa, 1, &pte);
+	if(r < 0)
+	{
+		return r;
+	}
+
+	// Check if memory allocation failed
+    if (pte == NULL)
+	{
+        return -E_NO_MEM;
+    }
+
+    // Check if a mapping already exists
+    if (epte_present(*pte) && !overwrite)
+	{
+        return -E_INVAL;
+    }
+
+    // Set the EPT entry
+	physaddr_t hpa = PADDR(hva);
+    *pte = ((uint64_t)hpa | __EPTE_TYPE(EPTE_TYPE_WB) | __EPTE_IPAT | perm);
+
     return 0;
 }
 
@@ -288,7 +350,7 @@ int test_ept_map(void)
         }
 	cprintf("EPT immediate mapping check passed\n");
 
-
+	cprintf("Cheers! sys_ept_map seems to work correctly\n");
 	/* stop running after test, as this is just a test run. */
 	panic("Cheers! sys_ept_map seems to work correctly.\n");
 

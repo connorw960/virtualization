@@ -453,7 +453,61 @@ static int
 sys_ept_map(envid_t srcenvid, void *srcva,
 	    envid_t guest, void* guest_pa, int perm)
 {
-    /* Your code here */
+	// Env structs for both envids
+	struct Env *src_env, *guest_env;
+	struct PageInfo *pp;
+    pte_t *src_pte;
+    physaddr_t src_pa;
+ 	// Make sure environments exist
+	int r;
+    if ((r = envid2env(srcenvid, &src_env, 1)) < 0 || 
+        (r = envid2env(guest, &guest_env, 1)) < 0) 
+	{
+        return -E_BAD_ENV;
+    }
+
+	// Check that it is a guest environment
+	if(guest_env->env_type != ENV_TYPE_GUEST)
+	{
+		return -E_INVAL;
+	}
+
+
+	// Validate srcva and guest_pa
+	if (srcva >= (void*) UTOP || srcva != ROUNDDOWN(srcva, PGSIZE))
+	{
+		return -E_INVAL;
+	}
+	if (guest_pa >= (void*) guest_env->env_vmxinfo.phys_sz || guest_pa != ROUNDDOWN(guest_pa, PGSIZE) )
+	{
+		return -E_INVAL;
+	}
+    // Check if srcva is mapped in srcenvid's address space
+    if ((pp = page_lookup(src_env->env_pml4e, (void *)srcva, &src_pte)) == 0)
+	{
+		return -E_INVAL;
+	}
+
+	// Check if perm exists
+	if(perm == 0)
+	{
+		return -E_INVAL;
+	}
+
+	if ((perm & PTE_W) && !(*src_pte & PTE_W))
+	{
+		return -E_INVAL;
+	}
+
+	// Map page using EPT
+	r = ept_map_hva2gpa(guest_env->env_pml4e, (void *)page2kva(pp), (void *)guest_pa, perm, 0);
+	
+	if(r <0)
+	{
+		return -E_NO_MEM; 
+	}
+	pp->pp_ref++;
+
     return 0;
 }
 
