@@ -215,21 +215,24 @@ handle_cpuid(struct Trapframe *tf, struct VmxGuestInfo *ginfo)
 {
 	/* Your code here  */
     panic("handle_cpuid is not impemented\n");
-	uint32_t *rax,*rbx, *rcx, *rdx; // Output values
-	cpuid(tf->tf_regs.reg_rax,rax,rbx,rcx,rdx);
-	if(rax == 1)
+	uint32_t eax, ebx, ecx, edx;
+	cpuid( tf->tf_regs.reg_rax, &eax, &ebx, &ecx, &edx );
+	
+	// Check for VMX support and mask it
+	if(eax == 1)
 	{
-		if(BIT(rcx,5) == 1)
+		bool vmx_support = (bool)BIT(ecx, 5);
+		if(vmx_support)
 		{
-			rcx &= ~(1<<5);
+			ecx &= ~(1<<5);
 		}
 	}
 
 	// Store results back in the trap frame
-    tf->tf_regs.reg_rax = rax;
-    tf->tf_regs.reg_rbx = rbx;
-    tf->tf_regs.reg_rcx = rcx;
-    tf->tf_regs.reg_rdx = rdx;
+    tf->tf_regs.reg_rax = eax;
+    tf->tf_regs.reg_rbx = ebx;
+    tf->tf_regs.reg_rcx = ecx;
+    tf->tf_regs.reg_rdx = edx;
 
 	tf->tf_rip += vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
     return true;
