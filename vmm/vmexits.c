@@ -215,7 +215,24 @@ handle_cpuid(struct Trapframe *tf, struct VmxGuestInfo *ginfo)
 {
 	/* Your code here  */
     panic("handle_cpuid is not impemented\n");
-    return false;
+	uint32_t *rax,*rbx, *rcx, *rdx; // Output values
+	cpuid(tf->tf_regs.reg_rax,rax,rbx,rcx,rdx);
+	if(rax == 1)
+	{
+		if(BIT(rcx,5) == 1)
+		{
+			rcx &= ~(1<<5);
+		}
+	}
+
+	// Store results back in the trap frame
+    tf->tf_regs.reg_rax = rax;
+    tf->tf_regs.reg_rbx = rbx;
+    tf->tf_regs.reg_rcx = rcx;
+    tf->tf_regs.reg_rdx = rdx;
+
+	tf->tf_rip += vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
+    return true;
 }
 
 // Handle vmcall traps from the guest.
@@ -252,6 +269,48 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		// Copy the mbinfo and memory_map_t (segment descriptions) into the guest page, and return
 		//   a pointer to this region in rbx (as a guest physical address).
 		/* Your code here */
+		memory_map_t *lowMemMap, *ioMap, *highMemMap;
+
+		// 3 Segments
+		mbinfo.mmap_length = sizeof(memory_map_t) * 3;
+		mbinfo.mmap_addr = multiboot_map_addr;
+
+		lowMemMap->size = sizeof(memory_map_t);
+		lowMemMap->type = MB_TYPE_USABLE;
+		lowMemMap->base_addr_low = 0;
+		lowMemMap->base_addr_high = 0;
+		lowMemMap->length_high = 0;
+		lowMemMap->length_low = 640*1024;
+
+		ioMap->size = sizeof(memory_map_t);
+		ioMap->type = MB_TYPE_RESERVED;
+		ioMap->base_addr_low = 640*1024;
+		ioMap->base_addr_high = 0;
+		ioMap->length_low = 384*1024;
+		ioMap->length_high = 0;
+
+		highMemMap->size = sizeof(memory_map_t);
+		highMemMap->type = MB_TYPE_USABLE;
+		highMemMap->base_addr_low = 1024*1024;
+		highMemMap->base_addr_high = 0;
+		highMemMap->length_low = curenv->env_vmxinfo.phys_sz - 1024*1024;
+		highMemMap->length_high = 0;
+
+		// Create (if necessary) page and map it
+		gpa_pg = (void *)multiboot_map_addr;
+		r = ept_map_hva2gpa(curenv->env_pml4e, hva_pg, gpa_pg, __EPTE_FULL, 0);
+		if(r < 0)
+		{
+			handled = false;
+			break;
+		}
+
+		memcpy(gpa_pg, &mbinfo, sizeof(multiboot_info_t));
+		memcpy(gpa_pg,&lowMemMap,sizeof(memory_map_t));
+		memcpy((char *)gpa_pg+sizeof(memory_map_t),&ioMap,sizeof(memory_map_t));
+		memcpy((char *)gpa_pg+2*sizeof(memory_map_t),&highMemMap,sizeof(memory_map_t));
+		tf->tf_regs.reg_rbx = multiboot_map_addr;
+		handled = true;
 		break;
 	case VMX_VMCALL_IPCSEND:
         /* Hint: */
@@ -294,6 +353,8 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		 * Hint: The solution does not hard-code the length of the vmcall instruction.
 		 */
 		/* Your code here */
+
+		tf->tf_rip += vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
 	}
 	return handled;
 }
