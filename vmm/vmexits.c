@@ -272,32 +272,45 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		// Copy the mbinfo and memory_map_t (segment descriptions) into the guest page, and return
 		//   a pointer to this region in rbx (as a guest physical address).
 		/* Your code here */
-		memory_map_t *lowMemMap, *ioMap, *highMemMap;
 
 		// 3 Segments
 		mbinfo.mmap_length = sizeof(memory_map_t) * 3;
 		mbinfo.mmap_addr = multiboot_map_addr;
 
-		lowMemMap->size = sizeof(memory_map_t);
-		lowMemMap->type = MB_TYPE_USABLE;
-		lowMemMap->base_addr_low = 0;
-		lowMemMap->base_addr_high = 0;
-		lowMemMap->length_high = 0;
-		lowMemMap->length_low = 640*1024;
+		memory_map_t* mmap_base = (memory_map_t*)(uintptr_t)mbinfo.mmap_addr;
+		memory_map_t* mmap_list[mbinfo.mmap_length/ (sizeof(memory_map_t))];
 
-		ioMap->size = sizeof(memory_map_t);
-		ioMap->type = MB_TYPE_RESERVED;
-		ioMap->base_addr_low = 640*1024;
-		ioMap->base_addr_high = 0;
-		ioMap->length_low = 384*1024;
-		ioMap->length_high = 0;
-
-		highMemMap->size = sizeof(memory_map_t);
-		highMemMap->type = MB_TYPE_USABLE;
-		highMemMap->base_addr_low = 1024*1024;
-		highMemMap->base_addr_high = 0;
-		highMemMap->length_low = curenv->env_vmxinfo.phys_sz - 1024*1024;
-		highMemMap->length_high = 0;
+		for(int i = 0; i < (mbinfo.mmap_length / (sizeof(memory_map_t))); i++)
+		{
+			memory_map_t* mmap = &mmap_base[i];
+			if(i==0)
+			{
+				mmap->size = sizeof(memory_map_t);
+				mmap->type = MB_TYPE_USABLE;
+				mmap->base_addr_low = 0;
+				mmap->base_addr_high = 0;
+				mmap->length_high = 0;
+				mmap->length_low = 640*1024;
+			}
+			else if(i==1)
+			{
+				mmap->size = sizeof(memory_map_t);
+				mmap->type = MB_TYPE_RESERVED;
+				mmap->base_addr_low = 640*1024;
+				mmap->base_addr_high = 0;
+				mmap->length_low = 384*1024;
+				mmap->length_high = 0;
+			}
+			else
+			{
+				mmap->size = sizeof(memory_map_t);
+				mmap->type = MB_TYPE_USABLE;
+				mmap->base_addr_low = 1024*1024;
+				mmap->base_addr_high = 0;
+				mmap->length_low = curenv->env_vmxinfo.phys_sz - 1024*1024;
+				mmap->length_high = 0;
+			}
+		}
 
 		// Create (if necessary) page and map it
 		gpa_pg = (void *)multiboot_map_addr;
@@ -309,9 +322,9 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		}
 
 		memcpy(gpa_pg, &mbinfo, sizeof(multiboot_info_t));
-		memcpy(gpa_pg,&lowMemMap,sizeof(memory_map_t));
-		memcpy((char *)gpa_pg+sizeof(memory_map_t),&ioMap,sizeof(memory_map_t));
-		memcpy((char *)gpa_pg+2*sizeof(memory_map_t),&highMemMap,sizeof(memory_map_t));
+		memcpy(gpa_pg,&mmap_list[0],sizeof(memory_map_t));
+		memcpy((char *)gpa_pg+sizeof(memory_map_t),&mmap_list[1],sizeof(memory_map_t));
+		memcpy((char *)gpa_pg+2*sizeof(memory_map_t),&mmap_list[2],sizeof(memory_map_t));
 		tf->tf_regs.reg_rbx = multiboot_map_addr;
 		handled = true;
 		break;
