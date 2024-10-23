@@ -53,7 +53,7 @@
 Name 3 different events that might cause a vmexit. You can look through some of the reasons in \texttt{vmm/vmx.c}, but it may be easier to reason this from your knowledge of operating systems and virtual machines
 
 \begin{solution}
-Your answer here.
+Events that cause a vmmexit include: the guest executing a halt instruction, the guest executing an IO instruction, and the guest experiencing an external interrupt.
 \end{solution}
 
 
@@ -62,7 +62,7 @@ Your answer here.
 What overhead costs exist when you do a VM exit? Give an example in the codebase of one of these computation costs. Provide the function and file, and an explanation.
 
 \begin{solution}
-Your answer here.
+When we do a VM exit, we must save the state to the VMCS. In the file vmm/vmx.c in function asm\_vmrun(), we are saving registers to the TrapFrame. This is done so that we may have access to these values when we return to the guest.
 \end{solution}
 
 
@@ -80,7 +80,7 @@ Your answer here.
 In Part-3 of this project, you will be responsible for filling in pieces in the codebase to boot the VM. What is a bootloader? How do we ensure isolation between machines booting in memory?
 
 \begin{solution}
-Your answer here.
+A bootloader is the initial code a computer runs to setup the OS. It does this by initializing RAM and handing off control to the OS once it's loaded. The hypervisor will hand off a map of memory that the guest OS can use. This map will be isolated from other guests and the host.
 \end{solution}
 
 
