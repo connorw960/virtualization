@@ -437,7 +437,9 @@ void vmexit() {
 	// Get the reason for VMEXIT from the VMCS.
 	// Your code here.
 
-	//cprintf( "---VMEXIT Reason: %d---\n", exit_reason );
+	exit_handled = vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
+	cprintf( "---VMEXIT Reason: %d---\n", exit_reason );
+	
 	/* vmcs_dump_cpu(); */
 
 	switch(exit_reason & EXIT_REASON_MASK) {
