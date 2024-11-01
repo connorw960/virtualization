@@ -225,6 +225,11 @@ handle_cpuid(struct Trapframe *tf, struct VmxGuestInfo *ginfo)
 		if(vmx_support)
 		{
 			ecx &= ~(1<<5);
+			vmx_support = (bool)BIT(ecx, 5);
+			if(vmx_support)
+			{
+				cprintf("Masking VMX did not work.\n");
+			}
 		}
 	}
 
@@ -272,47 +277,51 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		// Copy the mbinfo and memory_map_t (segment descriptions) into the guest page, and return
 		//   a pointer to this region in rbx (as a guest physical address).
 		/* Your code here */
-		memory_map_t *lowMemMap, *ioMap, *highMemMap;
+		memory_map_t mem_map[3];
 
 		// 3 Segments
-		mbinfo.mmap_length = sizeof(memory_map_t) * 3;
+		mem_map[0].size = sizeof(memory_map_t);
+		mem_map[0].type = MB_TYPE_USABLE;
+		mem_map[0].base_addr_low = 0;
+		mem_map[0].base_addr_high = 0;
+		mem_map[0].length_high = 0;
+		mem_map[0].length_low = 640*1024;
+
+		mem_map[1].size = sizeof(memory_map_t);
+		mem_map[1].type = MB_TYPE_RESERVED;
+		mem_map[1].base_addr_low = 640*1024;
+		mem_map[1].base_addr_high = 0;
+		mem_map[1].length_low = 384*1024;
+		mem_map[1].length_high = 0;
+
+		mem_map[2].size = sizeof(memory_map_t);
+		mem_map[2].type = MB_TYPE_USABLE;
+		mem_map[2].base_addr_low = 1024*1024;
+		mem_map[2].base_addr_high = 0;
+		mem_map[2].length_low = (uint32_t)curenv->env_vmxinfo.phys_sz - 1024*1024;
+		mem_map[2].length_high = (uint32_t)((curenv->env_vmxinfo.phys_sz >> 32)) - 1024*1024;
+
+		mbinfo.mmap_length = sizeof(mem_map);
 		mbinfo.mmap_addr = multiboot_map_addr;
-
-		lowMemMap->size = sizeof(memory_map_t);
-		lowMemMap->type = MB_TYPE_USABLE;
-		lowMemMap->base_addr_low = 0;
-		lowMemMap->base_addr_high = 0;
-		lowMemMap->length_high = 0;
-		lowMemMap->length_low = 640*1024;
-
-		ioMap->size = sizeof(memory_map_t);
-		ioMap->type = MB_TYPE_RESERVED;
-		ioMap->base_addr_low = 640*1024;
-		ioMap->base_addr_high = 0;
-		ioMap->length_low = 384*1024;
-		ioMap->length_high = 0;
-
-		highMemMap->size = sizeof(memory_map_t);
-		highMemMap->type = MB_TYPE_USABLE;
-		highMemMap->base_addr_low = 1024*1024;
-		highMemMap->base_addr_high = 0;
-		highMemMap->length_low = curenv->env_vmxinfo.phys_sz - 1024*1024;
-		highMemMap->length_high = 0;
+		mbinfo.flags = MB_FLAG_MMAP;
 
 		// Create (if necessary) page and map it
-		gpa_pg = (void *)multiboot_map_addr;
-		r = ept_map_hva2gpa(curenv->env_pml4e, hva_pg, gpa_pg, __EPTE_FULL, 0);
+		struct Page *tmp_page = NULL;
+		tmp_page = page_alloc(ALLOC_ZERO);
+		hva_pg = page2kva(tmp_page);
+
+		memcpy((void*)hva_pg, (void*) &mbinfo, sizeof(multiboot_info_t));
+		memcpy(((void*)hva_pg+sizeof(multiboot_info_t)), (void*)mem_map, sizeof(mem_map));
+		tf->tf_regs.reg_rbx = multiboot_map_addr;
+
+		r = ept_map_hva2gpa(curenv->env_pml4e, (void*)hva_pg, (void*)multiboot_map_addr, __EPTE_FULL, 1);
 		if(r < 0)
 		{
 			handled = false;
 			break;
 		}
 
-		memcpy(gpa_pg, &mbinfo, sizeof(multiboot_info_t));
-		memcpy(gpa_pg,&lowMemMap,sizeof(memory_map_t));
-		memcpy((char *)gpa_pg+sizeof(memory_map_t),&ioMap,sizeof(memory_map_t));
-		memcpy((char *)gpa_pg+2*sizeof(memory_map_t),&highMemMap,sizeof(memory_map_t));
-		tf->tf_regs.reg_rbx = multiboot_map_addr;
+		// Success
 		handled = true;
 		break;
 	case VMX_VMCALL_IPCSEND:
