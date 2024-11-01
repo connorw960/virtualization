@@ -306,15 +306,26 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		mbinfo.flags = MB_FLAG_MMAP;
 
 		// Create (if necessary) page and map it
-		struct Page *tmp_page = NULL;
-		tmp_page = page_alloc(ALLOC_ZERO);
+		
+		struct Page *tmp_page = pa2page(multiboot_map_addr);
+		if(tmp_page == NULL)
+		{
+			tmp_page = page_alloc(ALLOC_ZERO);
+			if(tmp_page == NULL)
+			{
+				cprintf("Failed to allocate page - can't handle vmcall");
+				handled = false;
+				break;
+			}
+		}
+		
 		hva_pg = page2kva(tmp_page);
 
 		memcpy(hva_pg, &mbinfo, sizeof(multiboot_info_t));
 		memcpy((void*)((uintptr_t)hva_pg+sizeof(multiboot_info_t)), mem_map, sizeof(mem_map));
 		tf->tf_regs.reg_rbx = multiboot_map_addr;
 
-		r = ept_map_hva2gpa(curenv->env_pml4e, hva_pg, (void*)multiboot_map_addr, __EPTE_FULL, 1);
+		r = ept_map_hva2gpa(curenv->env_pml4e, hva_pg, (void*)multiboot_map_addr, __EPTE_FULL, 0);
 		if(r < 0)
 		{
 			handled = false;
