@@ -214,7 +214,6 @@ bool
 handle_cpuid(struct Trapframe *tf, struct VmxGuestInfo *ginfo)
 {
 	/* Your code here  */
-    panic("handle_cpuid is not impemented\n");
 	uint32_t eax, ebx, ecx, edx;
 	cpuid( tf->tf_regs.reg_rax, &eax, &ebx, &ecx, &edx );
 	
@@ -224,7 +223,7 @@ handle_cpuid(struct Trapframe *tf, struct VmxGuestInfo *ginfo)
 		bool vmx_support = (bool)BIT(ecx, 5);
 		if(vmx_support)
 		{
-			ecx &= ~(1<<5);
+			ecx  = ecx & ~32;
 			vmx_support = (bool)BIT(ecx, 5);
 			if(vmx_support)
 			{
@@ -264,6 +263,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 	uint32_t val;
 	// phys address of the multiboot map in the guest.
 	uint64_t multiboot_map_addr = 0x6000;
+	memory_map_t mem_map[3];
 	switch(tf->tf_regs.reg_rax) {
 	case VMX_VMCALL_MBMAP:
         /* Hint: */
@@ -277,8 +277,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		// Copy the mbinfo and memory_map_t (segment descriptions) into the guest page, and return
 		//   a pointer to this region in rbx (as a guest physical address).
 		/* Your code here */
-		memory_map_t mem_map[3];
-
+		
 		// 3 Segments
 		mem_map[0].size = sizeof(memory_map_t);
 		mem_map[0].type = MB_TYPE_USABLE;
@@ -307,7 +306,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 
 		// Create (if necessary) page and map it
 		
-		struct Page *tmp_page = pa2page(multiboot_map_addr);
+		struct PageInfo *tmp_page = pa2page((physaddr_t)multiboot_map_addr);
 		if(tmp_page == NULL)
 		{
 			tmp_page = page_alloc(ALLOC_ZERO);
