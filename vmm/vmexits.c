@@ -223,7 +223,7 @@ handle_cpuid(struct Trapframe *tf, struct VmxGuestInfo *ginfo)
 		bool vmx_support = (bool)BIT(ecx, 5);
 		if(vmx_support)
 		{
-			ecx  = ecx & ~32;
+			ecx &= 0xFFFFFFEF;
 			vmx_support = (bool)BIT(ecx, 5);
 			if(vmx_support)
 			{
