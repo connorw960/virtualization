@@ -451,62 +451,49 @@ sys_vmx_incr_vmdisk_number() {
 // 
 static int
 sys_ept_map(envid_t srcenvid, void *srcva,
-	    envid_t guest, void* guest_pa, int perm)
+        envid_t guest, void* guest_pa, int perm)
 {
-	// Env structs for both envids
-	struct Env *src_env, *guest_env;
-	struct PageInfo *pp;
-    pte_t *src_pte;
-    physaddr_t src_pa;
- 	// Make sure environments exist
-	int r;
-    if ((r = envid2env(srcenvid, &src_env, 1)) < 0 || 
-        (r = envid2env(guest, &guest_env, 1)) < 0) 
-	{
-        return -E_BAD_ENV;
+    int ret;
+    struct Env *src_env, *guest_env;
+    struct PageInfo *pp;
+    pte_t *ppte;
+
+    // check that the source virtual address is good
+    if (srcva >= (void*) UTOP || srcva != ROUNDDOWN(srcva, PGSIZE)) {
+        return -E_INVAL;
     }
 
-	// Check that it is a guest environment
-	if(guest_env->env_type != ENV_TYPE_GUEST)
-	{
-		return -E_INVAL;
-	}
+    // obtain src and guest env, returning error if either does not exist
+    if ((ret = envid2env(srcenvid, &src_env, 1)) < 0 ||
+        (ret = envid2env(guest, &guest_env, 1)) < 0) {
+            return ret;
+    }
+    // check that the guest physical address is good
+    if (guest_pa >= (void*) guest_env->env_vmxinfo.phys_sz || guest_pa != ROUNDDOWN(guest_pa, PGSIZE)) {
+        return -E_INVAL;
+    }
+    
+    // check that srcva is mapped in src_env's address space 
+    if ((pp = page_lookup(src_env->env_pml4e, srcva, &ppte)) == 0) {
+        return -E_INVAL;
+    }
 
+    // check that the requested permissions are valid (some combination of read, write, and exec)
+    if ((perm & __EPTE_FULL) == 0)
+		return -E_INVAL;
 
-	// Validate srcva and guest_pa
-	if (srcva >= (void*) UTOP || srcva != ROUNDDOWN(srcva, PGSIZE))
-	{
+    // if perm requests write permission but we don't have write access to the page,
+    // return an error
+	if ((perm & __EPTE_WRITE) && ((*ppte) & PTE_W) == 0)
 		return -E_INVAL;
-	}
-	if (guest_pa >= (void*) guest_env->env_vmxinfo.phys_sz || guest_pa != ROUNDDOWN(guest_pa, PGSIZE) )
-	{
-		return -E_INVAL;
-	}
-    // Check if srcva is mapped in srcenvid's address space
-    if ((pp = page_lookup(src_env->env_pml4e, (void *)srcva, &src_pte)) == 0)
-	{
-		return -E_INVAL;
-	}
 
-	// Check if perm exists
-	if(perm == 0)
-	{
-		return -E_INVAL;
-	}
-
-	if ((perm & PTE_W) && !(*src_pte & PTE_W))
-	{
-		return -E_INVAL;
-	}
-
-	// Map page using EPT
-	r = ept_map_hva2gpa(guest_env->env_pml4e, (void *)page2kva(pp), (void *)guest_pa, perm, 0);
-	
-	if(r <0)
-	{
-		return -E_NO_MEM; 
-	}
-	pp->pp_ref++;
+    // increment the page ref count. we'll undo this later if the mapping fails
+    pp->pp_ref += 1;
+    ret = ept_map_hva2gpa(guest_env->env_pml4e, page2kva(pp), guest_pa, perm, 0);
+    if (ret < 0) {
+        pp->pp_ref -= 1;
+        return ret;
+    }
 
     return 0;
 }
