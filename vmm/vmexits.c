@@ -277,28 +277,32 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		// Copy the mbinfo and memory_map_t (segment descriptions) into the guest page, and return
 		//   a pointer to this region in rbx (as a guest physical address).
 		/* Your code here */
-		
-		// 3 Segments
-		mem_map[0].size = sizeof(memory_map_t);
-		mem_map[0].type = MB_TYPE_USABLE;
-		mem_map[0].base_addr_low = 0;
-		mem_map[0].base_addr_high = 0;
-		mem_map[0].length_high = 0;
-		mem_map[0].length_low = 640*1024;
+		memory_map_t *low_mem, *io_mem, *high_mem;
 
-		mem_map[1].size = sizeof(memory_map_t);
-		mem_map[1].type = MB_TYPE_RESERVED;
-		mem_map[1].base_addr_low = 640*1024;
-		mem_map[1].base_addr_high = 0;
-		mem_map[1].length_low = 384*1024;
-		mem_map[1].length_high = 0;
+		low_mem = (memory_map_t *) malloc(sizeof(memory_map_t));
+		io_mem = (memory_map_t *) malloc(sizeof(memory_map_t));
+		high_mem = (memory_map_t *) malloc(sizeof(memory_map_t));
 
-		mem_map[2].size = sizeof(memory_map_t);
-		mem_map[2].type = MB_TYPE_USABLE;
-		mem_map[2].base_addr_low = 1024*1024;
-		mem_map[2].base_addr_high = 0;
-		mem_map[2].length_low = (uint32_t)(curenv->env_vmxinfo.phys_sz - 1024*1024);
-		mem_map[2].length_high = (uint32_t)(curenv->env_vmxinfo.phys_sz >> 32);
+		low_mem -> size = sizeof(memory_map_t);
+		low_mem -> base_addr_low = 0;
+		low_mem -> base_addr_high = 0;
+		low_mem -> length_high = 0;
+		low_mem -> length_low = 640 * 1024;
+		low_mem -> type = MB_TYPE_USABLE;
+
+		io_mem -> size = sizeof(memory_map_t);
+		io_mem -> base_addr_low = 640 * 1024;
+		io_mem -> base_addr_high = 0;
+		io_mem -> length_high = 0;
+		io_mem -> length_low = 384 * 1024;
+		io_mem -> type = MB_TYPE_RESERVED;
+
+		high_mem -> size = sizeof(memory_map_t);
+		high_mem -> base_addr_low = 1024 * 1024;
+		high_mem -> base_addr_high = 0;
+		high_mem -> length_high = (uint32_t)((curenv -> env_vmxinfo.phys_sz - (1024*1024)) >> 32);
+		high_mem -> length_low = (uint32_t)((curenv -> env_vmxinfo.phys_sz - 1024*1024) & 0xFFFFFFFF);
+		high_mem -> type = MB_TYPE_USABLE;
 
 		mbinfo.mmap_length = sizeof(mem_map);
 		mbinfo.mmap_addr = multiboot_map_addr;
