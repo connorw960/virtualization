@@ -53,11 +53,11 @@
 Name 3 different events that might cause a vmexit. You can look through some of the reasons in \texttt{vmm/vmx.c}, but it may be easier to reason this from your knowledge of operating systems and virtual machines
 
 \begin{solution}
-1. An external interruption (e.g. the host OS shuts down the hypervisor process or something like that.)
+1. A CPUID call.
 
 2. An I/O interruption might cause the VM to exit.
 
-3. An exception, like an EPT violation could cause the VM to exit. 
+3. An exception, like an EPT violation or page fault could cause the VM to exit. 
 \end{solution}
 
 
@@ -67,9 +67,7 @@ What overhead costs exist when you do a VM exit? Give an example in the codebase
 
 \begin{solution}
 There are multiple overhead costs when performing a VM ext. Namely, context switching overhead, general resource management, handling the actual exit event, and then handling the return.
-In our codebase we can see that in the handle_eptviolation() function in vmm/vmexits.c. In this function we have to perform a whole new EPT mapping, if this is performed frequently, the overhead 
-could be quite large. 
-
+The function void asm\_vmrun(struct Trapframe tf) in file vmm/vmx.c saves the register states during a context switch.
 \end{solution}
 
 
@@ -78,7 +76,7 @@ could be quite large.
 Recall that the \texttt{\%cr3} register holds the physical address of a page table. An OS kernel needs to change \texttt{\%cr3} during context switches to switch page tables. Does our VM, which has hardware supported page tables for virtual machines also have to do this? GDB does not display the \texttt{\%cr3} register, but you can check it using the QEMU monitor before and after a vmexit is issued.
 
 \begin{solution}
-Yes, we still have to switch the cr3 register when performing a context swith even with hardware supported pagetables. 
+No, the VM does not need to modify the \texttt{\%cr3} register on every context switch because it uses EPT which provides each VM it's own memory and it's own \texttt{\%cr3} register.
 \end{solution}
 
 
@@ -87,8 +85,9 @@ Yes, we still have to switch the cr3 register when performing a context swith ev
 In Part-3 of this project, you will be responsible for filling in pieces in the codebase to boot the VM. What is a bootloader? How do we ensure isolation between machines booting in memory?
 
 \begin{solution}
-A bootloader is just a program responsible for loading an OS into memory and starting it. We achieve isolation by pointing to different memory addresses for the different VMs. Furthermore, 
-each VM has its own virtual address space which has a unique mapping to a physical address space. The hypervisor is responsible for doing this. 
+A bootloader is just a program found in the first 512 bytes of a bootable device responsible for loading an OS into memory and starting it. We achieve isolation by pointing to different memory addresses for the different VMs. 
+Specifically, we use Extended Page Tables to ensure every VM has a separate set of page tables to map the VM virtual memory to unique physical memory. 
+The hypervisor is responsible for doing this. 
 \end{solution}
 
 
