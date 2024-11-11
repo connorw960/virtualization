@@ -323,7 +323,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 			break;
 		}
 		
-		memcpy(hva_pg, &mbinfo, sizeof(multiboot_info_t));
+		// memcpy(hva_pg, &mbinfo, sizeof(multiboot_info_t));
 		memcpy(hva_pg, &low_mem_map, sizeof(memory_map_t));
 		memcpy(hva_pg+sizeof(memory_map_t), &io_map, sizeof(memory_map_t));
 		memcpy(hva_pg+2*sizeof(memory_map_t), &high_mem_map, sizeof(memory_map_t));
