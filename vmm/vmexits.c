@@ -213,27 +213,31 @@ handle_ioinstr(struct Trapframe *tf, struct VmxGuestInfo *ginfo) {
 bool
 handle_cpuid(struct Trapframe *tf, struct VmxGuestInfo *ginfo)
 {
-	/* Your code here  */
-	uint32_t eax, ebx, ecx, edx;
-	cpuid( tf->tf_regs.reg_rax, &eax, &ebx, &ecx, &edx );
-	
-	// Check for VMX support and mask it
-	if(tf->tf_regs.reg_rax == 1)
-	{
-		tf->tf_regs.reg_rcx = (uint64_t)(ecx & ~(0x20));
-	}
-	else
-	{
-		tf->tf_regs.reg_rcx = (uint64_t)(ecx);
+	// --- LAB 3 --- 
+	uint32_t info, eax, ebx, ecx, edx;
+
+	// determine the info value to use based on the value of rax in the trapframe
+	info = tf->tf_regs.reg_rax;
+	cpuid(info, &eax, &ebx, &ecx, &edx);
+
+	// if info == 1, processor features were requested. we want to hide the presence of vmx from 
+	// the guest if this is the case
+	// 0x20 is 100000. ~ it to set all bits but the 5th one to 0
+	// then bitwise AND with ecx to zero out the 5th bit while keeping 
+	// all other bits the same
+	if (info) {
+		ecx &= ~0x20U;
 	}
 
-	// Store results back in the trap frame
-    tf->tf_regs.reg_rax = (uint64_t)eax;
-    tf->tf_regs.reg_rbx = (uint64_t)ebx;
-    tf->tf_regs.reg_rdx = (uint64_t)edx;
+	// then store the output in the trapframe
+	tf->tf_regs.reg_rax = eax;
+	tf->tf_regs.reg_rbx = ebx;
+	tf->tf_regs.reg_rcx = ecx;
+	tf->tf_regs.reg_rdx = edx;
 
-	tf->tf_rip += vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
-    return true;
+	// update the instruction pointer
+    tf->tf_rip += vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
+	return true;
 }
 
 // Handle vmcall traps from the guest.
@@ -260,7 +264,6 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 	
 	switch(tf->tf_regs.reg_rax) {
 	case VMX_VMCALL_MBMAP:
-	{
         /* Hint: */
 		// Craft a multiboot (e820) memory map for the guest.
 		//
@@ -272,65 +275,84 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		// Copy the mbinfo and memory_map_t (segment descriptions) into the guest page, and return
 		//   a pointer to this region in rbx (as a guest physical address).
 		/* Your code here */
+
+		// -- LAB 3 --
 		
-		// 3 Segments
-		memory_map_t low_mem_map, io_map, high_mem_map;
-		low_mem_map.size = sizeof(memory_map_t);
-		low_mem_map.type = MB_TYPE_USABLE;
-		low_mem_map.base_addr_low = 0;
-		low_mem_map.base_addr_high = 0;
-		low_mem_map.length_high = 0;
-		low_mem_map.length_low = 640*1024;
+		// this involves creating a "fake" memory map, stored in the mbinfo struct, to give to the guest
+		// first wipe the mbinfo struct to make sure there is no garbage data there
+		memset(&mbinfo, 0, sizeof(mbinfo));
+		// we are creating a memroy map, so set the flags appropriately
+		mbinfo.flags |= MB_FLAG_MMAP;
+		// we are going to create 3 memory mapping segments
+		mbinfo.mmap_length = 3 * sizeof(memory_map_t);
+		// set the address of the location to copy the mapping segments. they will come just after 
+		// the mbinfo struct
+		mbinfo.mmap_addr = multiboot_map_addr + sizeof(mbinfo);
 
-		io_map.size = sizeof(memory_map_t);
-		io_map.type = MB_TYPE_RESERVED;
-		io_map.base_addr_low = 640*1024;
-		io_map.base_addr_high = 0;
-		io_map.length_low = 384*1024;
-		io_map.length_high = 0;
+		// now create and fill in the memory_map_t's for the three mapping segments
+		// in memory_map_t, base_addr_low/base_addr_high and length_low/length_high are used to 
+		// store 64-bit values in 32-bit variables. *_low should store the lower 32 bits and *_high
+		// should store the upper 32 bits. 
+		memory_map_t lomap, iohole, himap;
 
-		high_mem_map.size = sizeof(memory_map_t);
-		high_mem_map.type = MB_TYPE_USABLE;
-		high_mem_map.base_addr_low = 1024*1024;
-		high_mem_map.base_addr_high = 0;
-		high_mem_map.length_low = (uint32_t)((curenv->env_vmxinfo.phys_sz - 1024*1024) & (0xffffffff));
-		high_mem_map.length_high = (uint32_t)((curenv->env_vmxinfo.phys_sz >> 32) & (0xffffffff));
+		// base addresses of each segment (from assignment document):
+		// - low memory: 0
+		// - IO hole: 640k (right after low memory)
+		// - high memory: 1024k (right after the IO hole)
 
-		mbinfo.mmap_length = 3*sizeof(memory_map_t);
-		mbinfo.mmap_addr = multiboot_map_addr;
-		mbinfo.flags = MB_FLAG_MMAP;
+		// set up low mem
+		memset(&lomap, 0, sizeof(lomap));
+		lomap.length_low = 640 * 1024; // 640k
+		lomap.size = sizeof(memory_map_t);
+		lomap.type = MB_TYPE_USABLE;
 
-		// Create (if necessary) page and map it
-		gpa_pg = (void*)multiboot_map_addr;
-		struct PageInfo *tmp_page = pa2page((physaddr_t)gpa_pg);
-		if(tmp_page == NULL)
-		{
-			tmp_page = page_alloc(ALLOC_ZERO);
-			if(tmp_page == NULL)
-			{
-				cprintf("Failed to allocate page - can't handle vmcall");
-				handled = false;
-				break;
+		// set up io hole
+		memset(&iohole, 0, sizeof(iohole));
+		iohole.base_addr_low = 640 * 1024;
+		iohole.length_low = (1024 * 1024) - (640 * 1024); // 1024k - 640k from the low memory
+		iohole.size = sizeof(memory_map_t); 
+		iohole.type = MB_TYPE_RESERVED; // unusable
+
+		// set up high mem
+		memset(&himap, 0, sizeof(himap));
+		himap.size = sizeof(memory_map_t); 
+		himap.type = MB_TYPE_USABLE;
+		himap.base_addr_low = 1024 * 1024; // 1024k
+		uint64_t himap_addr = gInfo->phys_sz - (1024 * 1024); // get the offset for this region
+		// then make sure to handle both the lower and upper 32 bits
+		himap.length_low = (uint32_t) himap_addr;
+		himap.length_high = (uint32_t) (himap_addr >> 32);
+
+		// copy the maps to guest memory. we first have to look up the host kernel virtual address
+		// corresponding to multiboot_map_addr (which is a physical address in the guest.)
+		// and allocate the page there if it doesn't exist yet
+		void* hva = NULL;
+		ept_gpa2hva(eptrt, (void*)multiboot_map_addr, &hva);
+		// if the hva doesn't exist, allocate and map it
+		if (!hva) {
+			struct PageInfo* p = page_alloc(0);
+			p->pp_ref += 1;
+			hva = page2kva(p); // get the kernel virtual address for the page we just allocated
+			// map the hva to multiboot_map_addr in the guest
+			r = ept_map_hva2gpa(eptrt, hva, (void*)multiboot_map_addr, __EPTE_FULL, 0); 
+			if (r < 0) {
+				return r; 
 			}
 		}
-		tmp_page->pp_ref += 1;
-		
-		hva_pg = page2kva(tmp_page);
-		r = ept_map_hva2gpa(curenv->env_pml4e, hva_pg, gpa_pg, __EPTE_FULL, 0);
-		if(r < 0)
-		{
-			handled = false;
-			break;
-		}
-		
-		// memcpy(hva_pg, &mbinfo, sizeof(multiboot_info_t));
-		memcpy(hva_pg, &low_mem_map, sizeof(memory_map_t));
-		memcpy(hva_pg+sizeof(memory_map_t), &io_map, sizeof(memory_map_t));
-		memcpy(hva_pg+2*sizeof(memory_map_t), &high_mem_map, sizeof(memory_map_t));
-		
+
+		// then, copy the mapping structures into that page
+		memcpy(hva, &mbinfo, sizeof(mbinfo));
+		hva += sizeof(mbinfo);
+		memcpy(hva, &lomap, sizeof(memory_map_t));
+		hva += sizeof(memory_map_t);
+		memcpy(hva, &iohole, sizeof(memory_map_t));
+		hva += sizeof(memory_map_t);
+		memcpy(hva, &himap, sizeof(memory_map_t));
+
+		// set rbx to the multiboot region
 		tf->tf_regs.reg_rbx = multiboot_map_addr;
 
-		// Success
+		// and indicate that we've handled the exit
 		handled = true;
 		break;
 	}
