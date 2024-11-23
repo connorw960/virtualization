@@ -75,7 +75,6 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 int32_t
 ipc_host_recv(void *pg) {
     /* Your code here */
-    panic("ipc_host_recv not implemented\n");
     // r stores the return of the vmcall
     int r = 0, val = 0;
     if (!pg)
@@ -85,10 +84,13 @@ ipc_host_recv(void *pg) {
     physaddr_t pa = PTE_ADDR(uvpt[PGNUM(pg)]);
 
     // ISSUE VMCALL
+	asm("vmcall":"=a"(r): "0"(VMX_VMCALL_IPCRECV));
 
     if (r < 0) {
 		return r;
 	}
+
+	return val;
 
 }
 
@@ -108,9 +110,11 @@ ipc_host_send(envid_t to_env, uint32_t val, void *pg, int perm)
     physaddr_t pa = PTE_ADDR(uvpt[PGNUM(pg)]);
 
     // ISSUE FIRST VMCALL
+	asm("vmcall":"=a"(r): "0"(VMX_VMCALL_IPCSEND));
     while(r == -E_IPC_NOT_RECV) {
 		sys_yield();
 		// TRY VMCALL REPEATEDLY UNTIL YOU GET A RESPONSE
+		asm("vmcall":"=a"(r): "0"(VMX_VMCALL_IPCSEND));
 	}
 	if (r < 0)
 		panic("error in ipc_send: %e", r);

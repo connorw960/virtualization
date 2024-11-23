@@ -255,7 +255,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 {
 	bool handled = false;
 	multiboot_info_t mbinfo;
-	int perm, r;
+	int perm, r, i;
 	void *gpa_pg, *hva_pg;
 	envid_t to_env;
 	uint32_t val;
@@ -367,13 +367,44 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		//  this to a host virtual address for the IPC to work properly.
         //  Then you should call sys_ipc_try_send()
 		/* Your code here */
-		break;
+		void* gpa = NULL;
+		void* hva = NULL;
+		gpa = tf->tf_regs.reg_rdx;
+		int value = tf->tf_regs.reg_rcx;
+		perm = tf->tf_regs.reg_rsi;
+		int destVal = tf->tf_regs.reg_rbx;
 
+		// CHeck destination
+		if(destVal != ENV_TYPE_FS)
+		{
+			return -E_INVAL;
+		}
+
+		// Figure out envid
+	    if ( to_env == 1 && curenv->env_type == ENV_TYPE_GUEST)
+	    {
+			for (i = 0; i < NENV; i++)
+			{
+				if (envs[i].env_type == ENV_TYPE_FS)
+				{
+					to_env = (uint64_t)( envs[i].env_id);
+					break;
+				}
+			}
+	    }
+
+		ept_gpa2hva(eptrt, (void*)gpa, &hva);
+			
+		tf->tf_regs.reg_rax = sys_ipc_try_send(to_env, value, hva, perm);
+	    handled = true;
+		break;
 	case VMX_VMCALL_IPCRECV:
 		// Issue the sys_ipc_recv call for the guest.
 		// NB: because recv can call schedule, clobbering the VMCS, 
 		// you should go ahead and increment rip before this call.
 		/* Your code here */
+		tf->tf_rip += vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
+		tf->tf_regs.reg_rax = sys_ipc_recv(tf->tf_regs.reg_rbx);
 		break;
 	case VMX_VMCALL_LAPICEOI:
 		lapic_eoi();

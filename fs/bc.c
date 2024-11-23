@@ -60,6 +60,8 @@ bc_pgfault(struct UTrapframe *utf)
 
 	/* FIXME DP: Should be lab 8 */
     /* Your code here */
+	if ((r = ide_read(blockno * BLKSECTS, addr, BLKSECTS)) < 0)
+		panic("in bc_pgfault, host_read: %e", r);
 
 #endif // VMM_GUEST
 
@@ -83,6 +85,7 @@ bc_pgfault(struct UTrapframe *utf)
 void
 flush_block(void *addr)
 {
+	int r;
 	uint64_t blockno = ((uint64_t)addr - DISKMAP) / BLKSIZE;
 
 	if (addr < (void*)DISKMAP || addr >= (void*)(DISKMAP + DISKSIZE))
@@ -96,12 +99,20 @@ flush_block(void *addr)
 
 #ifndef VMM_GUEST
 
-	ide_write(blockno * BLKSECTS, (void*) addr, BLKSECTS);
+	if((r = ide_write(blockno * BLKSECTS, (void*) addr, BLKSECTS) < 0))
+	{
+		panic("in flush_block, ide_write: %e", r);
+	}
 
 #else
 
 	/* FIXME DP: Should be lab 8 */
     /* Your code here */
+	if((r = host_write(blockno * BLKSECTS, (void*) addr, BLKSECTS) < 0))
+	{
+		panic("in flush_block, host_write: %e", r);
+	}
+
 
 #endif
 

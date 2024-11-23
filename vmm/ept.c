@@ -151,6 +151,25 @@ void free_guest_mem(epte_t* eptrt) {
 int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
 
     /* Your code here */
+	int r;
+    pte_t *pte = NULL;
+
+    if((r = ept_lookup_gpa(eptrt, (void*) gpa, 1, &pte)) < 0)
+	{
+		return r;
+	}
+    if (pte == NULL )
+	{
+		return -E_NO_MEM;
+	}
+    if(*pte & PTE_P)
+	{
+		page_decref(pa2page(gpa));
+	}
+    *pte = ((uint64_t)page2pa(pp)) | perm | __EPTE_IPAT;
+	// Success so increment
+    pp->pp_ref++;
+	
     return 0;
 }
 
