@@ -342,14 +342,14 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
             return -E_INVAL;
         }
 
-		if(curenv->env_type != ENV_TYPE_GUEST)
+		if(curenv->env_type == ENV_TYPE_GUEST)
 		{
 			r = page_insert(e->env_pml4e, pp, e->env_ipc_dstva, perm);
 			if (r < 0) {
 				cprintf("[%08x] page_insert %08x failed in sys_ipc_try_send (%e)\n", curenv->env_id, srcva, r);
 				return r;
 			}
-			e->env_tf.tf_regs.reg_rsi = value;
+			
 		}
 		else
 		{
@@ -358,6 +358,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 				cprintf("[%08x] ept_page_insert %08x failed in sys_ipc_try_send (%e)\n", curenv->env_id, srcva, r);
 				return r;
 			}
+            e->env_tf.tf_regs.reg_rsi = value;
 		}
 
         e->env_ipc_perm = perm;
