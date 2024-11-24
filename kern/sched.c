@@ -73,9 +73,9 @@ sched_yield(void)
 	if (curenv && curenv->env_status == ENV_RUNNING) {
 #ifndef VMM_GUEST
 		if (envs[k].env_type == ENV_TYPE_GUEST) {
-			if (curenv->env_vmxinfo.vcpunum != cpunum()) {
-				return;
-			}
+			// if (curenv->env_vmxinfo.vcpunum != cpunum()) {
+			// 	return;
+			// }
 			r = vmxon();
 			if (r < 0) {
 				env_destroy(curenv);

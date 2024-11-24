@@ -433,5 +433,3 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 	}
 	return handled;
 }
-
-
