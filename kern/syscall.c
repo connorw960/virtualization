@@ -325,25 +325,27 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
      *  is using normal page, use page_insert. Use ept_page_insert() wherever possible. */
     /* Your code here */
 
-    if (srcva < (void*) UTOP && e->env_ipc_dstva < (void*) UTOP) {
-        if ((~perm & (PTE_U|PTE_P)) || (perm & ~PTE_SYSCALL)) {
+    if ( ) {
+        
+
+        // Guest to host
+		if(curenv->env_type == ENV_TYPE_GUEST && e->env_ipc_dstva < (void*) UTOP)
+		{
+            if ((~perm & (PTE_U|PTE_P)) || (perm & ~PTE_SYSCALL)) {
             cprintf("[%08x] bad perm %x in sys_ipc_try_send\n", curenv->env_id, perm);
             return -E_INVAL;
-        }
+            }
 
-        pp = page_lookup(curenv->env_pml4e, srcva, &ppte);
-        if (pp == 0) {
-            cprintf("[%08x] page_lookup %08x failed in sys_ipc_try_send\n", curenv->env_id, srcva);
-            return -E_INVAL;
-        }
+            pp = page_lookup(curenv->env_pml4e, srcva, &ppte);
+            if (pp == 0) {
+                cprintf("[%08x] page_lookup %08x failed in sys_ipc_try_send\n", curenv->env_id, srcva);
+                return -E_INVAL;
+            }
 
-        if ((perm & PTE_W) && !(*ppte & PTE_W)) {
-            cprintf("[%08x] attempt to send read-only page read-write in sys_ipc_try_send\n", curenv->env_id);
-            return -E_INVAL;
-        }
-
-		if(curenv->env_type == ENV_TYPE_GUEST)
-		{
+            if ((perm & PTE_W) && !(*ppte & PTE_W)) {
+                cprintf("[%08x] attempt to send read-only page read-write in sys_ipc_try_send\n", curenv->env_id);
+                return -E_INVAL;
+            }
 			r = page_insert(e->env_pml4e, pp, e->env_ipc_dstva, perm);
 			if (r < 0) {
 				cprintf("[%08x] page_insert %08x failed in sys_ipc_try_send (%e)\n", curenv->env_id, srcva, r);
@@ -351,8 +353,23 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 			}
 			
 		}
-		else
+		else if(e->env_type == ENV_TYPE_GUEST && srcva < (void*) UTOP)
 		{
+            if ((~perm & (PTE_U|PTE_P)) || (perm & ~PTE_SYSCALL)) {
+            cprintf("[%08x] bad perm %x in sys_ipc_try_send\n", curenv->env_id, perm);
+            return -E_INVAL;
+            }
+
+            pp = page_lookup(curenv->env_pml4e, srcva, &ppte);
+            if (pp == 0) {
+                cprintf("[%08x] page_lookup %08x failed in sys_ipc_try_send\n", curenv->env_id, srcva);
+                return -E_INVAL;
+            }
+
+            if ((perm & PTE_W) && !(*ppte & PTE_W)) {
+                cprintf("[%08x] attempt to send read-only page read-write in sys_ipc_try_send\n", curenv->env_id);
+                return -E_INVAL;
+            }
 			r = ept_page_insert(e->env_pml4e, pp, e->env_ipc_dstva, perm);
 			if (r < 0) {
 				cprintf("[%08x] ept_page_insert %08x failed in sys_ipc_try_send (%e)\n", curenv->env_id, srcva, r);
