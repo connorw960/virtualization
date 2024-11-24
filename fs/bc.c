@@ -60,7 +60,7 @@ bc_pgfault(struct UTrapframe *utf)
 
 	/* FIXME DP: Should be lab 8 */
     /* Your code here */
-	if ((r = ide_read(blockno * BLKSECTS, addr, BLKSECTS)) < 0)
+	if ((r = host_read(blockno * BLKSECTS, addr, BLKSECTS)) < 0)
 		panic("in bc_pgfault, host_read: %e", r);
 
 #endif // VMM_GUEST
