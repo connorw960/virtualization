@@ -189,7 +189,6 @@ int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
     return 0;
 }
 
-
 // Map host virtual address hva to guest physical address gpa,
 // with permissions perm.  eptrt is a pointer to the extended
 // page table root.
