@@ -165,7 +165,6 @@ void free_guest_mem(epte_t* eptrt) {
 // Return 0 on success, <0 on failure.
 //
 int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
-
     /* Your code here */
 	int r;
     pte_t *pte = NULL;
