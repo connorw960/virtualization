@@ -355,8 +355,9 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		// and indicate that we've handled the exit
 		handled = true;
 		break;
-	}
+	
 	case VMX_VMCALL_IPCSEND:
+	{
         /* Hint: */
 		// Issue the sys_ipc_send call to the host.
 		// 
@@ -367,10 +368,10 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		//  this to a host virtual address for the IPC to work properly.
         //  Then you should call sys_ipc_try_send()
 		/* Your code here */
-		void* gpa = NULL;
+		uint64_t gpa;
 		void* hva = NULL;
 		gpa = tf->tf_regs.reg_rdx;
-		int value = tf->tf_regs.reg_rcx;
+		val = tf->tf_regs.reg_rcx;
 		perm = tf->tf_regs.reg_rsi;
 		int destVal = tf->tf_regs.reg_rbx;
 
@@ -381,7 +382,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		}
 
 		// Figure out envid
-	    if ( to_env == 1 && curenv->env_type == ENV_TYPE_GUEST)
+	    if (curenv->env_type == ENV_TYPE_GUEST)
 	    {
 			for (i = 0; i < NENV; i++)
 			{
@@ -394,18 +395,32 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 	    }
 
 		ept_gpa2hva(eptrt, (void*)gpa, &hva);
-			
-		tf->tf_regs.reg_rax = sys_ipc_try_send(to_env, value, hva, perm);
+		r = syscall(SYS_ipc_try_send, (uint64_t)to_env, (uint64_t)val, (uint64_t)hva, (uint64_t)perm, 0);
+		if(r < 0)
+		{
+			handled = false;
+			break;
+		}
+		tf->tf_regs.reg_rax = r;
 	    handled = true;
 		break;
+	}
 	case VMX_VMCALL_IPCRECV:
+	{
 		// Issue the sys_ipc_recv call for the guest.
 		// NB: because recv can call schedule, clobbering the VMCS, 
 		// you should go ahead and increment rip before this call.
 		/* Your code here */
 		tf->tf_rip += vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
-		tf->tf_regs.reg_rax = sys_ipc_recv(tf->tf_regs.reg_rbx);
+		r = syscall(SYS_ipc_recv, (uint64_t)tf->tf_regs.reg_rbx,0,0,0,0);
+		if(r < 0)
+		{
+			handled = false;
+			break;
+		}
+		tf->tf_regs.reg_rax = r;
 		break;
+	}
 	case VMX_VMCALL_LAPICEOI:
 		lapic_eoi();
 		handled = true;

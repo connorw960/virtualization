@@ -310,6 +310,7 @@ sys_page_unmap(envid_t envid, void *va)
 static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
+#ifndef VMM_GUEST
     int r;
     struct Env *e;
     struct PageInfo *pp;
@@ -326,6 +327,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
     /* Your code here */
 
     // Guest to host
+
     if(curenv->env_type == ENV_TYPE_GUEST && e->env_ipc_dstva < (void*) UTOP)
     {
         if ((~perm & (PTE_U|PTE_P)) || (perm & ~PTE_SYSCALL)) {
@@ -380,11 +382,13 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
         e->env_ipc_perm = 0;
     }
 
+
     e->env_ipc_recving = 0;
     e->env_ipc_from = curenv->env_id;
     e->env_ipc_value = value;
     e->env_tf.tf_regs.reg_rax = 0;
     e->env_status = ENV_RUNNABLE;
+#endif
     return 0;
 }
 
