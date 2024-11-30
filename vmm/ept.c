@@ -179,7 +179,7 @@ int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
 	}
     if(*pte & PTE_P)
 	{
-		page_decref(pa2page((physaddr_t)gpa));
+		page_remove(eptrt, gpa);
 	}
     *pte = ((uint64_t)page2pa(pp)) | perm | __EPTE_IPAT;
 	// Success so increment
