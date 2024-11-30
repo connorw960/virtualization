@@ -481,7 +481,6 @@ page_init(void)
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
-	// Fill this function in
 #line 540 "../kern/pmap.c"
 	struct PageInfo *pp = page_free_list;
 	if (pp) {

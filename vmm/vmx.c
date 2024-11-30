@@ -436,9 +436,12 @@ void vmexit() {
 	static uint32_t host_vector;
 	// Get the reason for VMEXIT from the VMCS.
 	// Your code here.
+
+	// -- LAB 3 --
+	// check the VMCS for the exit reason
 	exit_reason = vmcs_read32(VMCS_32BIT_VMEXIT_REASON);
 
-	// cprintf( "---VMEXIT Reason: %d---\n", exit_reason );
+	//cprintf( "---VMEXIT Reason: %d---\n", exit_reason );
 	/* vmcs_dump_cpu(); */
 
 	switch(exit_reason & EXIT_REASON_MASK) {
@@ -501,7 +504,8 @@ void asm_vmrun(struct Trapframe *tf) {
 		"push %%rcx \n\t" /* placeholder for guest rcx */
 		"push %%rcx \n\t"
 		/* Set the VMCS rsp to the current top of the frame. */
-		"vmwrite %%rsp, %%rdx\n\t"
+		/* Your code here */
+		"vmwrite %%rsp, %%rdx\n\t" // writes contents of rdx
 		"1: \n\t"
 		/* Reload cr2 if changed */
 		"mov %c[cr2](%0), %%rax \n\t"
@@ -519,7 +523,8 @@ void asm_vmrun(struct Trapframe *tf) {
 		 *       you can use register offset addressing mode, such as '%c[rax](%0)'
 		 *       to simplify the pointer arithmetic.
 		 */
-		"cmpl $1, %c[launched](%0) \n\t"
+		/* Your code here */
+		"cmpl $1, %c[launched](%0) \n\t" // added
 		/* Load guest general purpose registers from the trap frame.  Don't clobber flags.
 		 *
 		 */
@@ -538,7 +543,7 @@ void asm_vmrun(struct Trapframe *tf) {
 		"mov %c[r13](%0), %%r13 \n\t"
 		"mov %c[r14](%0), %%r14 \n\t"
 		"mov %c[r15](%0), %%r15 \n\t"
-		"mov %c[rcx](%0), %%rcx \n\t"
+		"mov %c[rcx](%0), %%rcx \n\t" 
 		/* GUEST MODE */
 		/* Your code here:
 		 *
@@ -569,7 +574,7 @@ void asm_vmrun(struct Trapframe *tf) {
 		/* Your code here */
 		"mov %%rax, %c[rax](%0) \n\t"
 		"mov %%rbx, %c[rbx](%0) \n\t"
-		"popq %c[rcx](%0)\n\t"
+		"popq %c[rcx](%0) \n\t" // earlier we stored %rcx on the stack, and we need to add a pop to make the pushes and pops symmetrical
 		"mov %%rdx, %c[rdx](%0) \n\t"
 		"mov %%rsi, %c[rsi](%0) \n\t"
 		"mov %%rdi, %c[rdi](%0) \n\t"
@@ -585,8 +590,8 @@ void asm_vmrun(struct Trapframe *tf) {
 		"mov %%rax, %%r10 \n\t"
 		"mov %%rdx, %%r11 \n\t"
 
-		"mov %%cr2, %%rax\n\t"
-		"mov %%rax, %c[cr2](%0)\n\t"
+		"mov %%cr2, %%rax   \n\t"
+		"mov %%rax, %c[cr2](%0) \n\t"
 
 		"pop  %%rbp; pop  %%rdx \n\t"
 
@@ -708,7 +713,7 @@ int vmx_vmrun( struct Env *e ) {
 
 	vmcs_write64( VMCS_GUEST_RSP, curenv->env_tf.tf_rsp  );
 	vmcs_write64( VMCS_GUEST_RIP, curenv->env_tf.tf_rip );
-	// panic("asm_vmrun is incomplete");
+    // panic("asm_vmrun is incomplete");
 	asm_vmrun( &e->env_tf );
 	return 0;
 }

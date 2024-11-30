@@ -14,6 +14,7 @@ int ept_alloc_static(epte_t *eptrt, struct VmxGuestInfo *ginfo);
 void free_guest_mem(epte_t* eptrt);
 void ept_gpa2hva(epte_t* eptrt, void *gpa, void **hva);
 int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm);
+int alloc_intermediate_ept_page(epte_t* parent, uint64_t index, int create);
 
 #define EPT_LEVELS 4
 
