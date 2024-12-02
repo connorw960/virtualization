@@ -331,43 +331,6 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
             return -E_INVAL;
         }
 
-
-#ifndef VMM_GUEST
-        if(curenv->env_type != ENV_TYPE_GUEST)
-        {
-            pp = page_lookup(curenv->env_pml4e, srcva, &ppte);
-            if (pp == 0) {
-                cprintf("[%08x] page_lookup %08x failed in sys_ipc_try_send\n", curenv->env_id, srcva);
-                return -E_INVAL;
-            }
-
-            if ((perm & PTE_W) && !(*ppte & PTE_W)) {
-                cprintf("[%08x] attempt to send read-only page read-write in sys_ipc_try_send\n", curenv->env_id);
-                return -E_INVAL;
-            }
-            r = page_insert(e->env_pml4e, pp, e->env_ipc_dstva, perm);
-        }
-        else
-        {
-            void* gpa = NULL;
-            r = ept_map_hva2gpa(curenv->env_pml4e,srcva,gpa,perm,0);
-            if(r < 0)
-            {
-                return r;
-            }
-            pp = pa2page((physaddr_t)gpa);
-            if (pp == 0) {
-                cprintf("[%08x] page_lookup %08x failed in sys_ipc_try_send\n", curenv->env_id, srcva);
-                return -E_INVAL;
-            }
-
-            if ((perm & PTE_W) && !(*ppte & PTE_W)) {
-                cprintf("[%08x] attempt to send read-only page read-write in sys_ipc_try_send\n", curenv->env_id);
-                return -E_INVAL;
-            }
-            r = ept_page_insert(e->env_pml4e, pp, e->env_ipc_dstva, perm);
-        }
-#else
         pp = page_lookup(curenv->env_pml4e, srcva, &ppte);
         if (pp == 0) {
             cprintf("[%08x] page_lookup %08x failed in sys_ipc_try_send\n", curenv->env_id, srcva);
@@ -378,8 +341,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
             cprintf("[%08x] attempt to send read-only page read-write in sys_ipc_try_send\n", curenv->env_id);
             return -E_INVAL;
         }
+
         r = page_insert(e->env_pml4e, pp, e->env_ipc_dstva, perm);
-#endif
         if (r < 0) {
             cprintf("[%08x] page_insert %08x failed in sys_ipc_try_send (%e)\n", curenv->env_id, srcva, r);
             return r;

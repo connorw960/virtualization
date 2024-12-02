@@ -103,7 +103,6 @@ flush_block(void *addr)
 	{
 		panic("in flush_block, ide_write: %e", r);
 	}
-
 #else
 
 	/* FIXME DP: Should be lab 8 */
@@ -112,8 +111,6 @@ flush_block(void *addr)
 	{
 		panic("in flush_block, host_write: %e", r);
 	}
-
-
 #endif
 
 	sys_page_map(0, addr, 0, addr, uvpt[PGNUM(addr)] & PTE_SYSCALL);
