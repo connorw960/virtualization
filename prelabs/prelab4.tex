@@ -113,7 +113,9 @@ After completing the lab, provide a simple diagram (you can just use function na
 of the workflow of the functions that get called when a guest VM tries to read from a file.
 
 \begin{solution}
-hostfs_ipc()->
+bc_pgfault()->
+host_read()->
+host_fsipc()->
 ipc_host_send()->
 ipc_host_recv();
 \end{solution}
