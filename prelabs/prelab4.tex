@@ -53,7 +53,42 @@
 An easy way we can help prevent code duplication is by using macros in functions. We saw one example of this in Lab 1 with the \texttt{VMM\_GUEST} macro. In many of the hypercalls we have in JOS, we need to differentiate when we are running in the guest or host. Give an example of a C program that adds up all the numbers in an array when the macro is set, and multiplies them when the macro is not set.
 
 \begin{solution}
-Your answer here.
+int main()
+{
+    int array[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+
+    / Get the total size of the array in bytes
+    int sizeInBytes = sizeof(array);
+
+    // Get the size of one element in the array
+    int elementSize = sizeof(array[0]);
+
+    // Calculate the number of elements in the array
+    int length = sizeInBytes / elementSize;
+
+    modifyArray(array, output, length);
+
+    for(size_t i =0; i < length; i++)
+    {
+        printf("Output: \%f",output);
+    }
+}
+
+void modifyArray(int array, double *output, int length)
+{
+#ifndef ADD_ARRAY 
+    for(int i=0;i<size;i++)
+    {
+        output *= array[i];
+    }
+#else
+    output -= 1;
+    for(int i=0;i<size;i++)
+    {
+        output += array[i];
+    }
+#endif
+}
 \end{solution}
 
 
@@ -62,16 +97,25 @@ Your answer here.
 In this lab, you will write some code to implement demand paging for JOS VMs. What is a buffer cache? What is demand paging? How do these methods impact the performance of the file system?
 
 \begin{solution}
-Your answer here.
+A buffer cache is memory that is used to store data that needs to be access frequently.
+This reduces the number of times the system has to read from the disk with an I/O instruction since this is very slow.
+This reduces the latency that is caused by slow I/O but requires additional memory.
+Demand paging is used to load memory pages into RAM on "demand" or as needed. Instead of preloading the full data to memory.
+This reduces the memory required to run large programs, it can also speed up the startup time of large programs.
+This however increases page faults since the entire program is not loaded at start up. If the program is on a disk, the increased page faults will increase the need to access the disk and increase latency. 
+If Demand paging is used with a buffer cache it can reduce the number of times the system needs to access the disk and improve performance.
 \end{solution}
 
 
 \section{Question [1 point]}
 
-After completing the lab, provide a simple diagram (you can just use function names and arrows) of the workflow of the functions that get called when a guest VM tries to read from a file.
+After completing the lab, provide a simple diagram (you can just use function names and arrows) 
+of the workflow of the functions that get called when a guest VM tries to read from a file.
 
 \begin{solution}
-Your answer here.
+hostfs_ipc()->
+ipc_host_send()->
+ipc_host_recv();
 \end{solution}
 
 
