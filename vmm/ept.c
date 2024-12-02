@@ -181,7 +181,7 @@ int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
 	{
 		page_decref(pa2page(epte_addr(*pte)));
 	}
-    
+
     *pte = epte_addr((uint64_t)page2pa(pp)) | perm | __EPTE_IPAT;
 	// Success so increment
     pp->pp_ref++;
