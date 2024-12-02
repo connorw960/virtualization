@@ -377,25 +377,35 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		// Check destination
 		if(destVal != ENV_TYPE_FS)
 		{
-			handled = false;
+			handled = true;
 			tf->tf_regs.reg_rax = -E_INVAL;
+			break;
 		}
 
 		// Figure out envid
+		bool foundEnv = false;
 		for (i = 0; i < NENV; i++)
 		{
 			if (envs[i].env_type == ENV_TYPE_FS)
 			{
 				to_env = (uint64_t)( envs[i].env_id);
+				foundEnv = true;
 				break;
 			}
 			// todo handle case where we didn't find file system gracefullly
+		}
+		if(!foundEnv)
+		{
+			handled = true;
+			tf->tf_regs.reg_rax = -E_INVAL;
+			break;
 		}
 
 		ept_gpa2hva(eptrt, (void*)gpa, &hva);
 		if(hva == NULL)
 		{
-			handled = false;
+			handled = true;
+			tf->tf_regs.reg_rax = -E_INVAL;
 			break;
 		}
 		tf->tf_regs.reg_rax = syscall(SYS_ipc_try_send, (uint64_t)to_env, (uint64_t)val, (uint64_t)hva, (uint64_t)perm, 0);

@@ -367,7 +367,11 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
             cprintf("[%08x] attempt to send read-only page read-write in sys_ipc_try_send\n", curenv->env_id);
             return -E_INVAL;
         }
+#ifndef VMM_GUEST
         r = ept_page_insert(e->env_pml4e, pp, e->env_ipc_dstva, perm);
+#else
+        return -E_INVAL;
+#endif
 
         if (r < 0) {
             cprintf("[%08x] page_insert %08x failed in sys_ipc_try_send (%e)\n", curenv->env_id, srcva, r);
