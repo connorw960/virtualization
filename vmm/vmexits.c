@@ -374,33 +374,32 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		perm = tf->tf_regs.reg_rsi;
 		int destVal = tf->tf_regs.reg_rbx;
 
-		// CHeck destination
+		// Check destination
 		if(destVal != ENV_TYPE_FS)
 		{
-			return -E_INVAL;
+			handled = false;
+			tf->tf_regs.reg_rax = -E_INVAL;
 		}
 
 		// Figure out envid
-	    if (curenv->env_type == ENV_TYPE_GUEST)
-	    {
-			for (i = 0; i < NENV; i++)
+		for (i = 0; i < NENV; i++)
+		{
+			if (envs[i].env_type == ENV_TYPE_FS)
 			{
-				if (envs[i].env_type == ENV_TYPE_FS)
-				{
-					to_env = (uint64_t)( envs[i].env_id);
-					break;
-				}
+				to_env = (uint64_t)( envs[i].env_id);
+				break;
 			}
-	    }
+			// todo handle case where we didn't find file system gracefullly
+		}
 
 		ept_gpa2hva(eptrt, (void*)gpa, &hva);
-		r = syscall(SYS_ipc_try_send, (uint64_t)to_env, (uint64_t)val, (uint64_t)hva, (uint64_t)perm, 0);
-		if(r < 0)
+		if(hva == NULL)
 		{
 			handled = false;
 			break;
 		}
-		tf->tf_regs.reg_rax = r;
+		tf->tf_regs.reg_rax = syscall(SYS_ipc_try_send, (uint64_t)to_env, (uint64_t)val, (uint64_t)hva, (uint64_t)perm, 0);
+
 	    handled = true;
 		break;
 	}
@@ -412,12 +411,8 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		/* Your code here */
 		tf->tf_rip += vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
 		r = syscall(SYS_ipc_recv, (uint64_t)tf->tf_regs.reg_rbx,0,0,0,0);
-		if(r < 0)
-		{
-			handled = false;
-			break;
-		}
 		tf->tf_regs.reg_rax = r;
+		handled = true;
 		break;
 	}
 	case VMX_VMCALL_LAPICEOI:
