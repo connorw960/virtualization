@@ -350,6 +350,9 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
             cprintf("[%08x] page_insert %08x failed in sys_ipc_try_send (%e)\n", curenv->env_id, srcva, r);
             return r;
         }
+#ifndef VMM_GUEST
+        e->env_tf.tf_regs.reg_rsi = value;
+#endif
 
         e->env_ipc_perm = perm;
     } else {
